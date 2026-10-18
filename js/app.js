@@ -95,8 +95,10 @@
     const ex = st.players[pid];
     await R('players/' + pid).set({ name, team, cls: (ex && ex.cls) || null, cell: ex && ex.cell != null ? ex.cell : null, ts: now() });
   }
+  function canChangeClass() { const p = myPlayer(); if (!p) return false; if (st.match && sideOf(p.team) && phase() === 'battle' && st.match.stage !== 'plan' && st.match.stage !== 'result') return false; return true; }
   async function setClass(cls) {
     const p = myPlayer(); if (!p) return;
+    if (!canChangeClass()) return toast('เปลี่ยนอาชีพได้เฉพาะช่วงวางแผนก่อนเริ่มรอบ');
     if (cls === 'medic') { const n = teamPlayers(p.team).filter((x) => x.cls === 'medic' && x.name !== p.name).length; if (n >= settings().medicMax) return toast('ทีมมีหมอครบ ' + settings().medicMax + ' คนแล้ว'); }
     await R('players/' + me.pid).update({ cls });
   }
@@ -130,13 +132,19 @@
     const t = st.teams[team] || {};
     return { team, cells, roster: ros, plan: t.plan || 'front' };
   }
-  async function startMatch(id, a, b) {
-    const S = settings();
-    const seed = 'm' + id + '-' + Math.floor(Math.random() * 1e9).toString(36);
+  async function startMatch(id, a, b, round, wins) {
+    const S = settings(); round = round || 1; wins = wins || { a: 0, b: 0 };
+    const seed = 'm' + id + '-r' + round + '-' + Math.floor(Math.random() * 1e9).toString(36);
     const upd = {}; upd[a + '/plan'] = 'front'; upd[a + '/item'] = null; upd[b + '/plan'] = 'front'; upd[b + '/item'] = null;
+    if (round === 1) { upd[a + '/itemsUsed'] = null; upd[b + '/itemsUsed'] = null; }
     await R('teams').update(upd);
-    await R('match').set({ id, a, b, stage: 'plan', stageStart: now(), stageEnds: now() + S.tPlan * 1000, seed, waveInputs: null, taps: null, result: null });
+    await R('match').set({ id, a, b, round, wins, stage: 'plan', stageStart: now(), stageEnds: now() + S.tPlan * 1000, seed, waveInputs: null, taps: null, result: null });
     await R('game').update({ phase: 'battle' });
+  }
+  function matchDecided(m) { const S = settings(); return m && m.wins && (m.wins.a >= S.roundsToWin || m.wins.b >= S.roundsToWin); }
+  async function nextRound() {
+    const m = st.match; if (!m || m.stage !== 'result' || matchDecided(m)) return;
+    await startMatch(m.id, m.a, m.b, (m.round || 1) + 1, m.wins);
   }
   async function advanceStage() {
     const m = st.match; if (!m || m.stage === 'result') return;
@@ -162,16 +170,21 @@
       }
       upd['waveInputs/' + w] = inputs;
     }
+    let decided = false;
     if (next === 'result') {
       const cm = computeMatch(); const res = Sim.decide(cm.units, tapTotals('A'), tapTotals('B'), m.seed);
       upd.result = { winner: res.winner, team: teamOfSide(res.winner), loser: teamOfSide(res.winner === 'A' ? 'B' : 'A'), reason: res.reason, pctA: res.s.A.pct, pctB: res.s.B.pct, aliveA: res.s.A.alive, aliveB: res.s.B.alive };
+      const wins = { a: (m.wins && m.wins.a) || 0, b: (m.wins && m.wins.b) || 0 };
+      if (res.winner === 'A') wins.a++; else wins.b++;
+      upd.wins = wins; decided = wins.a >= S.roundsToWin || wins.b >= S.roundsToWin;
     }
-    upd.stage = next; upd.stageStart = now(); upd.stageEnds = now() + stageDur(next) * 1000;
+    upd.stage = next; upd.stageStart = now(); upd.stageEnds = now() + (next === 'result' ? (decided ? 0 : S.tResult) : stageDur(next)) * 1000;
     const teamUpd = {}; for (const k of Object.keys(upd)) if (k.startsWith('__teams/')) { teamUpd[k.slice(8)] = upd[k]; delete upd[k]; }
     if (Object.keys(teamUpd).length) await R('teams').update(teamUpd);
     await R('match').update(upd);
     if (next === 'result' && st.bracket) {
-      const bu = {}; bu['matches/' + m.id + '/winner'] = upd.result.team; bu['matches/' + m.id + '/loser'] = upd.result.loser;
+      const bu = {}; bu['matches/' + m.id + '/score'] = upd.wins;
+      if (decided) { bu['matches/' + m.id + '/winner'] = upd.result.team; bu['matches/' + m.id + '/loser'] = upd.result.loser; }
       await R('bracket').update(bu);
     }
   }
@@ -183,8 +196,9 @@
   }
   let advancing = false;
   async function hostTick() {
-    if (!isAdmin || !st.match || st.match.stage === 'result') return;
+    if (!isAdmin || !st.match) return;
     const m = st.match;
+    if (m.stage === 'result') { if (!matchDecided(m) && now() >= m.stageEnds + 400 && !advancing) { advancing = true; try { await nextRound(); } catch (e) { console.error(e); } setTimeout(() => { advancing = false; }, 1500); } return; }
     const due = /^wave/.test(m.stage) ? waveFinished() : now() >= m.stageEnds + 400;
     if (due && !advancing) { advancing = true; try { await advanceStage(); } catch (e) { console.error(e); } setTimeout(() => { advancing = false; }, 1500); }
   }
@@ -218,10 +232,11 @@
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 2500); }
   function teamChip(team) { const t = D.TEAMS[team]; return `<span class="chip team" style="background:${t.color}">${t.emoji} ${t.name}</span>`; }
   function fmtTime(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return s; }
+  function scoreChip() { const m = st.match; if (!m) return ''; const w = m.wins || { a: 0, b: 0 }; return `<span class="chip">รอบ ${m.round || 1} · <b style="color:${D.TEAMS[m.a].color}">${w.a}</b> : <b style="color:${D.TEAMS[m.b].color}">${w.b}</b></span>`; }
   function stageBar(big) {
     const m = st.match; if (!m) return '';
     const cls = /^wave/.test(m.stage) ? 'wave' : m.stage === 'result' ? '' : 'pause';
-    const t = m.stage === 'result' ? '' : fmtTime(m.stageEnds - now());
+    const t = m.stage === 'result' ? (matchDecided(m) ? '' : 'รอบถัดไปใน ' + fmtTime(m.stageEnds - now())) : fmtTime(m.stageEnds - now());
     return `<div class="stage ${cls} ${big ? 'big-stage' : ''}"><div class="nm">${STAGE_NAME[m.stage]}</div><div class="tm">${t}</div></div>`;
   }
   function boardHtml(team, opts) {
@@ -266,12 +281,12 @@
   function guideHtml() {
     const S = settings();
     return `<div class="panel guide"><h2>📖 คู่มือศึกแก่งกระจาน</h2>
-      <h3>เกมคืออะไร</h3><div>ทีมละ 8 ฮีโร่ (คุณเองนั่นแหละ) เลือกอาชีพ วางตำแหน่ง แล้วให้สนามจำลองสู้กันเอง 3 ระลอก ใครเหลือเลือดรวมมากกว่าชนะ แข่งแบบจับฉลาก รอบรอง → ชิงที่ 3 → ชิงชนะเลิศ รางวัล ${S.prizes.map((p) => p.toLocaleString()).join(' / ')} บาท</div>
+      <h3>เกมคืออะไร</h3><div>ทีมละ 8 ฮีโร่ (คุณเองนั่นแหละ) เลือกอาชีพ วางตำแหน่ง แล้วให้สนามจำลองสู้กันเอง 3 ระลอก ใครเหลือเลือดรวมมากกว่าชนะ แต่ละคู่ต้องชนะ ${S.roundsToWin} ใน 3 รอบ ทุกรอบเปลี่ยนอาชีพและจัดทัพใหม่ได้ · จับฉลาก รอบรอง → ชิงที่ 3 → ชิงชนะเลิศ รางวัล ${S.prizes.map((p) => p.toLocaleString()).join(' / ')} บาท</div>
       <h3>อาชีพแพ้ทางเป็นวงกลม</h3><div class="counter-table"><div>🐎 ม้า<br><b>ชนะ</b> ธนู 🏹</div><div>🔱 หอก<br><b>ชนะ</b> ม้า 🐎</div><div>🏹 ธนู<br><b>ชนะ</b> หอก 🔱</div></div>
       <div class="small muted">ตีคู่ที่ชนะทาง ×${S.counterWin} / ตีคู่ที่แพ้ทาง ×${S.counterLose} · ⚕️ หมอไม่โจมตี ฮีลเพื่อนใกล้ๆ ทุก ${S.healEvery} วิ (ทีมละไม่เกิน ${S.medicMax}) · ม้าที่วิ่งมาไกลพุ่งชนครั้งแรกแรง ×${S.cavCharge}</div>
       <h3>แถวที่วาง = จังหวะที่ออก</h3><ol><li><b>แถวหน้า</b> ออกวินาทีที่ 0 (ระลอก 1)</li><li><b>แถวกลาง</b> ออกระลอก 2</li><li><b>แถวหลัง</b> ไพ่ตาย ออกระลอก 3 ดาเมจทุกคน ×${S.waveMult[2]}</li></ol>
       <div class="small">มี 9 ช่อง 8 คน เลนบน/กลาง/ล่าง มีผล: หอกตีคนที่ใกล้ในเลนตัวเองก่อน ม้าพุ่งข้ามไปหาแถวหลัง ธนูยิงจากไกล</div>
-      <h3>ช่วงพักปรับทัพ (${S.tPause} วิ) ทำได้ 4 อย่าง</h3><ol><li>ย้ายฮีโร่ที่ <b>ยังไม่ออก</b> ไปช่องไหนก็ได้</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ใช้ได้แค่ 2 ครั้ง)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ระลอกถัดไปตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}%</li></ol>
+      <h3>ช่วงพักปรับทัพ (${S.tPause} วิ) ทำได้ 4 อย่าง</h3><ol><li>ย้ายฮีโร่ที่ <b>ยังไม่ออก</b> ไปช่องไหนก็ได้</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ระลอกถัดไปตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}%</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
       ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
@@ -375,7 +390,7 @@
   }
   function viewBattlePlayer(p) {
     const m = st.match; const team = p.team; const side = sideOf(team); const enemy = side === 'A' ? m.b : m.a;
-    let h = `<div class="row"><div class="grow"><b>${D.TEAMS[team].name}</b> <span class="vs">VS</span> <b>${D.TEAMS[enemy].name}</b> · ${st.bracket && st.bracket.matches[m.id] ? st.bracket.matches[m.id].label : ''}</div></div>` + stageBar();
+    let h = `<div class="row"><div class="grow"><b>${D.TEAMS[team].name}</b> <span class="vs">VS</span> <b>${D.TEAMS[enemy].name}</b> · ${st.bracket && st.bracket.matches[m.id] ? st.bracket.matches[m.id].label : ''}</div>${scoreChip()}</div>` + stageBar();
     const wave = /^wave/.test(m.stage);
     if (m.stage === 'result') return h + viewResult() + (st.bracket ? viewBracket() : '');
     if (wave) {
@@ -388,12 +403,12 @@
     const cm = computeMatch();
     if (m.stage !== 'plan') h += hpSummaryHtml();
     h += `<div class="panel"><div class="row"><h2 class="grow">${m.stage === 'plan' ? 'วางทัพ 8 คน' : 'ปรับทัพก่อนระลอก ' + (w + 1)}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8</span></div>
-      <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'ย้ายได้เฉพาะคนที่ยังไม่ออก (⚔️ = ออกสนามแล้ว)')}</div>${boardHtml(team, { interactive: true })}</div>`;
+      <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'ย้ายได้เฉพาะคนที่ยังไม่ออก (⚔️ = ออกสนามแล้ว)')}</div>${boardHtml(team, { interactive: true })}${m.stage === 'plan' ? `<button class="ghost" data-act="change-class">🔁 เปลี่ยนอาชีพของฉัน (${D.CLASSES[p.cls].emoji} ${D.CLASSES[p.cls].name})</button>` : ''}</div>`;
     if (m.stage !== 'plan') {
       h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
     }
     h += `<div class="panel"><h2>แผนเข้าตีระลอก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
-    if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมระลอกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">เลือกได้ 1 ชิ้น แตะซ้ำเพื่อยกเลิก เหลือโอกาสใช้ ${2 - teamItems(team).filter((x) => x.used).length} ครั้ง</div>${itemsHtml(team, isCaptain())}</div>`;
+    if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมระลอกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ระลอกละ 1 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ (ทุกรอบรวมกัน) แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกดเติมขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
@@ -430,9 +445,10 @@
     const W = D.TEAMS[r.team], L = D.TEAMS[r.loser];
     const reason = { wipe: 'ล้างบางทั้งทัพ!', hp: 'เลือดรวมเหลือมากกว่า', taps: 'เลือดเท่ากัน ชนะด้วยยอดรัวกด', coin: 'สูสีจนต้องเสี่ยงดวง' }[r.reason];
     const cm = computeMatch();
-    let h = `<div class="panel center"><div class="sub">ผู้ชนะ</div><div class="hero-title" style="font-size:40px">${W.emoji} ${W.name}</div><div>${reason} · ${Math.round(r.pctA * 100)}% vs ${Math.round(r.pctB * 100)}%</div>${hpSummaryHtml()}</div>`;
+    const dec = matchDecided(m); const w = m.wins || { a: 0, b: 0 };
+    let h = `<div class="panel center"><div class="sub">${dec ? 'ชนะคู่นี้' : 'ชนะรอบที่ ' + (m.round || 1)}</div><div class="hero-title" style="font-size:40px">${W.emoji} ${W.name}</div><div>${reason} · ${Math.round(r.pctA * 100)}% vs ${Math.round(r.pctB * 100)}%</div><div class="display" style="font-size:22px">สกอร์ <span style="color:${D.TEAMS[m.a].color}">${w.a}</span> : <span style="color:${D.TEAMS[m.b].color}">${w.b}</span></div>${dec ? '' : `<div class="hint">รอบถัดไปเริ่มอัตโนมัติใน ${fmtTime(m.stageEnds - now())} วิ · เปลี่ยนอาชีพ/จัดทัพใหม่ได้ตอนวางแผน</div>`}${hpSummaryHtml()}</div>`;
     h += `<div class="panel"><h3>สถิติ</h3>` + statsHtml(cm) + `</div>`;
-    if (isAdmin) h += `<div class="panel"><button class="primary" data-act="next-match">ไปศึกถัดไป ➜</button></div>`;
+    if (isAdmin) h += `<div class="panel row">${dec ? '<button class="primary" data-act="next-match">ไปคู่ถัดไป ➜</button>' : '<button class="primary" data-act="next-round">เริ่มรอบถัดไปเลย ▶</button>'}</div>`;
     return h;
   }
   function statsHtml(cm) {
@@ -444,7 +460,7 @@
   function viewBracket() {
     const b = st.bracket; if (!b) return ''; const M = b.matches; const cur = st.match && st.match.id;
     const card = (id) => { const x = M[id]; const nm = (t) => t ? `<div class="t ${x.winner === t ? 'win' : ''}" style="color:${D.TEAMS[t].color}">${D.TEAMS[t].emoji} ${D.TEAMS[t].name}${x.winner === t ? ' 🏆' : ''}</div>` : `<div class="t muted">รอผล</div>`;
-      return `<div class="match-card ${cur === id ? 'current' : ''}"><div class="lab">${x.label}</div>${nm(x.a)}${nm(x.b)}</div>`; };
+      const sc = x.score ? `<div class="lab">สกอร์ ${x.score.a} : ${x.score.b}</div>` : ''; return `<div class="match-card ${cur === id ? 'current' : ''}"><div class="lab">${x.label}</div>${nm(x.a)}${nm(x.b)}${sc}</div>`; };
     return `<div class="panel"><h2>สายการแข่งขัน</h2><div class="bracket">${card('m1')}${card('m2')}${card('m3')}${card('m4')}</div></div>`;
   }
   function viewPodium() {
@@ -466,7 +482,7 @@
     const A = D.TEAMS[m.a], B = D.TEAMS[m.b];
     const wave = /^wave/.test(m.stage);
     h += `<div class="screen-layout"><div class="side-panel">${sidePanel('A')}</div><div class="side-panel">`;
-    h += `<div class="row"><div class="grow center display" style="font-size:26px"><span style="color:${A.color}">${A.name}</span> <span class="vs">VS</span> <span style="color:${B.color}">${B.name}</span> <span class="small muted">· ${st.bracket && st.bracket.matches[m.id] ? st.bracket.matches[m.id].label : ''}</span></div></div>` + stageBar(true);
+    h += `<div class="row"><div class="grow center display" style="font-size:26px"><span style="color:${A.color}">${A.name}</span> <span class="vs">VS</span> <span style="color:${B.color}">${B.name}</span> <span class="small muted">· ${st.bracket && st.bracket.matches[m.id] ? st.bracket.matches[m.id].label : ''}</span> ${scoreChip()}</div></div>` + stageBar(true);
     if (wave || m.stage === 'result') h += `<div class="arena"><canvas id="arena"></canvas><div class="overlay" id="arena-overlay"></div></div><div class="commentary" id="commentary"></div>` + hpSummaryHtml();
     else {
       h += `<div class="arena"><canvas id="arena"></canvas><div class="overlay"><div class="banner">${m.stage === 'plan' ? '🤫 ทั้งสองทีมกำลังวางทัพลับ' : '⏸ พักปรับทัพ · ใช้ไอเทม · รัวกด!'}</div></div></div>`;
@@ -505,6 +521,7 @@
         <button class="gold" data-act="draw" ${st.bracket ? '' : ''}>🎲 จับฉลากสาย${st.bracket ? ' (ใหม่)' : ''}</button>
         <button class="primary" data-act="next-match" ${st.bracket ? '' : 'disabled'}>▶ เริ่มศึกถัดไป ${st.bracket ? '(' + (nextMatchId() || 'จบแล้ว') + ')' : ''}</button>
         <button data-act="advance" ${m && m.stage !== 'result' ? '' : 'disabled'}>⏭ ข้ามช่วง</button>
+        <button data-act="next-round" ${m && m.stage === 'result' && !matchDecided(m) ? '' : 'disabled'}>▶ รอบถัดไป</button>
         <button class="ghost" data-act="extend" ${m && m.stage !== 'result' ? '' : 'disabled'}>+15 วิ</button>
         <button class="danger" data-act="restart-match" ${m ? '' : 'disabled'}>↺ เริ่มศึกนี้ใหม่</button>
       </div>${st.bracket ? viewBracket() : ''}</div>`;
@@ -566,7 +583,7 @@
       else if (act === 'join-back') { ui.joinTeam = null; render(); }
       else if (act === 'join-name') { await joinAs(el.dataset.team, el.dataset.name); ui.joinTeam = null; render(); }
       else if (act === 'class') { await setClass(el.dataset.cls); }
-      else if (act === 'change-class') { await R('players/' + me.pid).update({ cls: null }); }
+      else if (act === 'change-class') { if (!canChangeClass()) return toast('เปลี่ยนอาชีพได้เฉพาะช่วงวางแผนก่อนเริ่มรอบ'); await R('players/' + me.pid).update({ cls: null }); }
       else if (act === 'leave') { me = null; try { localStorage.removeItem('kkwar-me'); } catch (e) {} ui.joinTeam = null; render(); }
       else if (act === 'guide') { ui.showGuide = true; render(); window.scrollTo(0, 0); }
       else if (act === 'guide-close') { ui.showGuide = false; render(); }
@@ -593,10 +610,11 @@
       else if (act === 'admin-logout') { isAdmin = false; try { localStorage.removeItem('kkwar-admin'); } catch (e) {} render(); }
       else if (act === 'atab') { ui.adminTab = el.dataset.tab; render(); }
       else if (act === 'draw') { if (st.bracket && !confirmUi(el, 'จับฉลากใหม่จะล้างผลศึกทั้งหมด กดอีกครั้งเพื่อยืนยัน')) return; await R('match').set(null); await drawBracket(); toast('จับฉลากแล้ว'); }
-      else if (act === 'next-match') { await startNextMatch(); }
+      else if (act === 'next-match') { if (st.match && st.match.stage === 'result' && !matchDecided(st.match)) return toast('คู่นี้ยังไม่จบ (ต้องชนะ ' + settings().roundsToWin + ' รอบ)'); await startNextMatch(); }
+      else if (act === 'next-round') { await nextRound(); }
       else if (act === 'advance') { await advanceStage(); }
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
-      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) upd[t + '/itemsUsed'] = null; await R('teams').update(upd); await startMatch(m.id, m.a, m.b); }
+      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) upd[t + '/itemsUsed'] = null; await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
       else if (act === 'reset-match') { if (!confirmUi(el, 'ล้างศึกและสาย? กดอีกครั้ง')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
       else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่างจริงๆ? กดอีกครั้ง')) return; await R('').set({ game: { phase: 'lobby' } }); toast('ล้างแล้ว'); }
       else if (act === 'fill-demo') { await fillDemo(); }
@@ -625,6 +643,6 @@
   R('bracket').on((v) => { st.bracket = v; if (st.ready) render(); else markReady(); });
   R('match').on((v) => { st.match = v; if (st.ready) render(); else markReady(); });
   window.addEventListener('hashchange', render);
-  setInterval(() => { if (st.match && st.match.stage !== 'result') { render(); hostTick(); } }, 1000);
+  setInterval(() => { if (st.match && (st.match.stage !== 'result' || !matchDecided(st.match))) { render(); hostTick(); } }, 1000);
   setTimeout(() => { if (!st.ready) { st.ready = true; render(); } }, 6000);
 })();

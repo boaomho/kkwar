@@ -45,6 +45,15 @@ const path = require('path');
   await waitStage('wave3', 30000); await admin.waitForTimeout(8000);
   await screen.screenshot({ path: 'tools/shots/screen-wave3.png' });
   await waitStage('result', 60000); await admin.waitForTimeout(1500);
+  await screen.screenshot({ path: 'tools/shots/screen-round1.png', fullPage: true });
+  const decided = async () => (await admin.evaluate(() => { const d = JSON.parse(localStorage.getItem('kkwar-mock-db')); const m = d.kkwar.match; return m.wins.a >= 2 || m.wins.b >= 2; }));
+  let guard = 0;
+  while (!(await decided()) && guard++ < 3) {
+    await admin.click('[data-act="next-round"]'); await waitStage('plan', 5000); await admin.waitForTimeout(500);
+    await player.screenshot({ path: 'tools/shots/p-round' + (guard + 1) + '-plan.png', fullPage: true });
+    for (const stg of ['wave1', 'pause1', 'wave2', 'pause2', 'wave3', 'result']) { await admin.click('[data-act="advance"]').catch(() => {}); await waitStage(stg, 40000); if (stg === 'pause1') { const it = await player.$('[data-act="item"]'); if (it) await it.click(); } await admin.waitForTimeout(600); }
+  }
+  console.log('decided after rounds:', guard + 1);
   await screen.screenshot({ path: 'tools/shots/screen-result.png', fullPage: true });
   await player.screenshot({ path: 'tools/shots/p-result.png', fullPage: true });
   await admin.screenshot({ path: 'tools/shots/admin-result.png', fullPage: true });

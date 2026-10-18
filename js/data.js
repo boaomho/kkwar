@@ -64,7 +64,7 @@ window.GameData = (function () {
     pin: '1234',
     prizes: [3200, 2500, 1900, 1400],
     // เวลา (วินาที)
-    tPlan: 45, tWave1: 15, tPause: 15, tWave2: 15, tWave3: 30,
+    tPlan: 40, tWave1: 12, tPause: 15, tWave2: 12, tWave3: 20, tResult: 30, roundsToWin: 2,
     // สมดุลอาชีพ
     hp:  { cav: 125, spear: 175, archer: 105, medic: 120 },
     atk: { cav: 14, spear: 12, archer: 10, medic: 0 },
