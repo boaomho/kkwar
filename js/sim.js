@@ -243,16 +243,23 @@ window.Sim = (function () {
           events.push({ t, type: 'die', id: target.id, name: target.name, cls: target.cls, side: target.side, by: u.id });
         }
       }
-      // กันซ้อนกัน (ฝ่ายเดียวกัน)
+      // กันซ้อนกัน (ทุกฝ่าย) คำนวณแรงผลักจากตำแหน่งเดียวกันทั้งหมดก่อนแล้วค่อยใช้ (สมมาตร ไม่ขึ้นกับลำดับ)
+      const SEP = S.separation || 0.085, AY = 0.5625;
+      const pushX = new Array(units.length).fill(0), pushY = new Array(units.length).fill(0);
       for (let i = 0; i < units.length; i++) {
         const a = units[i]; if (!a.alive || !a.deployed) continue;
         for (let j = i + 1; j < units.length; j++) {
-          const b = units[j]; if (!b.alive || !b.deployed || a.side !== b.side) continue;
-          const d = dist(a, b);
-          if (d < 0.06 && d > 0.0001) { const push = (0.06 - d) / 2; const dx = (a.x - b.x) / d, dy = (a.y - b.y) / d;
-            a.x += dx * push; a.y += dy * push; b.x -= dx * push; b.y -= dy * push; }
+          const b = units[j]; if (!b.alive || !b.deployed) continue;
+          const dx = a.x - b.x, dy = (a.y - b.y) * AY; const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < SEP && d > 0.0001) { const push = (SEP - d) / 2; const nx = dx / d, ny = dy / d / AY;
+            pushX[i] += nx * push; pushY[i] += ny * push; pushX[j] -= nx * push; pushY[j] -= ny * push; }
+          else if (d <= 0.0001) { const sgn = a.side === 'A' ? -1 : 1; pushX[i] += sgn * 0.01; pushX[j] -= sgn * 0.01; }
         }
-        a.x = Math.max(0.03, Math.min(0.97, a.x)); a.y = Math.max(0.08, Math.min(0.92, a.y));
+      }
+      for (let i = 0; i < units.length; i++) {
+        const a = units[i]; if (!a.alive || !a.deployed) continue;
+        a.x += pushX[i]; a.y += pushY[i];
+        a.x = Math.max(0.03, Math.min(0.97, a.x)); a.y = Math.max(0.14, Math.min(0.9, a.y));
       }
     }
     // เฟรมสุดท้าย
