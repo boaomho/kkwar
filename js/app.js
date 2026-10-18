@@ -388,6 +388,16 @@
     const r = new BattleRenderer(canvas, { teams: { A: teamA, B: teamB }, commentaryEl: null, now: () => Date.now() });
     const d = { renderer: r, timer: null, n: 0 };
     demos[itemId] = d;
+    const bestWave = (units, waveIdx, inputs, ros, seed, dur) => {
+      let best = null, bestScore = -1e9;
+      for (let i = 0; i < 40; i++) {
+        const w = Sim.simulateWave(units, waveIdx, inputs, ros, S, seed + '-' + i, dur);
+        const hs = Sim.hpSummary(w.units); const score = (hs.A.alive - hs.B.alive) * 100 + (hs.A.pct - hs.B.pct) * 100;
+        if (score > bestScore) { bestScore = score; best = w; }
+        if (hs.B.alive === 0 && hs.A.alive >= 3) break;
+      }
+      return best;
+    };
     const tag = canvas.parentElement && canvas.parentElement.querySelector('.demo-tag');
     const setTag = (t) => { if (tag) tag.textContent = t; };
     const loop = () => {
@@ -410,7 +420,7 @@
         let deadN = ours.filter((u) => !u.alive).length;
         for (const u of ours.sort((a, b) => a.hp - b.hp)) { if (deadN >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; deadN++; } }
         for (const u of ours) if (u.alive) u.hp = Math.round(u.maxHp * 0.3);
-        for (const u of w1.units) if (u.side === 'B' && u.alive) u.hp = Math.round(u.maxHp * 0.42); // ศัตรูก็บอบช้ำ เลือดเหลือง
+        for (const u of w1.units) if (u.side === 'B' && u.alive) u.hp = Math.round(u.maxHp * 0.36); // ศัตรูก็บอบช้ำ เลือดเหลือง
         ours.forEach((u) => { if (u.cls === 'medic' && !u.alive) { const other = ours.find((x) => x.alive && x.cls !== 'medic'); if (other) { other.alive = false; other.hp = 0; u.alive = true; u.hp = Math.round(u.maxHp * 0.3); } } });
         setTag('ยก 1: ฝ่ายเราโดนถล่ม…'); r.playWave(w1, Date.now() + 300, 1);
         d.timer = setTimeout(() => {
@@ -418,7 +428,7 @@
           setTag('⏸ พักยก → กัปตันกดใช้ 💧 น้ำทิพย์ (เทพ)'); r.setStatic(w1.units);
           d.timer = setTimeout(() => {
             if (demos[itemId] !== d) return;
-            const w2 = Sim.simulateWave(w1.units, 1, inpYes, ros, S, seed, 7);
+            const w2 = bestWave(w1.units, 1, inpYes, ros, seed, 7);
             setTag('ยก 2: +35% ทั้งทีม + ชุบ 1 คน → พลิกกลับมารุม!'); r.playWave(w2, Date.now() + 300, 1);
             d.timer = setTimeout(loop, 8000);
           }, 2500);
@@ -426,7 +436,7 @@
         return;
       }
       units.forEach((u) => { u.deployed = true; });
-      const w = Sim.simulateWave(units, 0, inpYes, ros, S, seed, 10);
+      const w = bestWave(units, 0, inpYes, ros, seed, 10);
       setTag({ net: 'เริ่มยก → 2 วิ โยน 🕸️ ตรึง 4 ตัวที่บุกมา 4 วิ โดนตีแรงขึ้น 30%', wheel: '🔥 ล้อไฟ: ทั้งทีมตีแรงขึ้น 35% ทั้งยก', chain: '🛡️ โซ่สามัคคี: ทั้งทีมรับดาเมจลด 40% ทั้งยก' }[itemId] || '');
       r.playWave(w, Date.now() + 300, 1);
       d.timer = setTimeout(loop, 11500);
