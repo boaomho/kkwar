@@ -178,7 +178,7 @@ window.Sim = (function () {
         if (!u.alive || !u.deployed) continue;
         if (u.stunUntil > t) continue;
         const mod = sideMod[u.side];
-        const speed = S.speed[u.cls] * SPEED_K * (u.cls === 'cav' ? mod.wheel : 1) * TICK;
+        const speed = S.speed[u.cls] * SPEED_K * TICK;
         const su = snap[u.id];
         if (u.cls === 'medic') {
           const allies = units.filter((a) => a.side === u.side && a.alive && a.deployed && a.id !== u.id).map((a) => snap[a.id]);
@@ -226,7 +226,7 @@ window.Sim = (function () {
         let dmg = S.atk[u.cls] * waveMult * cm.m;
         if (mod.plan === 'front') dmg *= S.planFrontBonus;
         dmg *= 1 + S.moraleMax * mod.morale;
-        if (u.cls === 'cav') dmg *= mod.wheel;
+        dmg *= mod.wheel;
         if (a.charge) dmg *= S.cavCharge;
         dmg *= S.varMin + rnd() * (S.varMax - S.varMin);
         const crit = rnd() < S.critChance;
