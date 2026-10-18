@@ -141,11 +141,12 @@
     const S = settings(); round = round || 1; wins = wins || { a: 0, b: 0 };
     const seed = 'm' + id + '-r' + round + '-' + Math.floor(Math.random() * 1e9).toString(36);
     const upd = {}; upd[a + '/plan'] = 'front'; upd[a + '/item'] = null; upd[b + '/plan'] = 'front'; upd[b + '/item'] = null;
-    if (round === 1) { upd[a + '/itemsUsed'] = null; upd[b + '/itemsUsed'] = null; }
+    if (round === 1) { upd[a + '/itemsUsed'] = null; upd[b + '/itemsUsed'] = null; upd[a + '/bonusUsed'] = null; upd[b + '/bonusUsed'] = null; }
     await R('teams').update(upd);
     await R('match').set({ id, a, b, round, wins, stage: 'plan', stageStart: now(), stageEnds: now() + S.tPlan * 1000, seed, waveInputs: null, taps: null, result: null });
     await R('game').update({ phase: 'battle' });
   }
+  function isDecider(m) { const S = settings(); return !!m && (m.round || 1) >= 2 * S.roundsToWin - 1; }
   function matchDecided(m) { const S = settings(); return m && m.wins && (m.wins.a >= S.roundsToWin || m.wins.b >= S.roundsToWin); }
   async function nextRound() {
     const m = st.match; if (!m || m.stage !== 'result' || matchDecided(m)) return;
@@ -166,7 +167,9 @@
         const team = teamOfSide(side); const snap = snapshotSide(team);
         const t = st.teams[team] || {};
         let item = null;
-        if (t.item && t.item.id) {
+        if (t.item && t.item.id && t.item.bonus) {
+          if (isDecider(m) && !t.bonusUsed && D.ITEMS[t.item.id]) { item = { id: t.item.id, tier: 0 }; upd['__teams/' + team + '/bonusUsed'] = true; }
+        } else if (t.item && t.item.id) {
           const its = teamItems(team).find((x) => x.id === t.item.id);
           if (its && !its.used && !its.locked) { item = { id: its.id, tier: its.tier }; upd['__teams/' + team + '/itemsUsed/' + its.id] = true; }
         }
@@ -283,7 +286,7 @@
     return h;
   }
   function itemsHtml(team, interactive) {
-    const sel = st.teams[team] && st.teams[team].item && st.teams[team].item.id;
+    const sel = st.teams[team] && st.teams[team].item && !st.teams[team].item.bonus && st.teams[team].item.id;
     return `<div class="item-grid">` + teamItems(team).map((it) => {
       const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}${I.revive && it.tier === 0 ? ' + ชุบชีวิต 1 คน' : ''}`;
       const cls = `item-card tier-${it.tier} ${it.used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel === it.id ? 'sel' : ''}`;
@@ -302,7 +305,7 @@
       <h3>อาชีพแพ้ทางเป็นวงกลม</h3><div class="counter-table"><div>🐎 ม้า<br><b>ชนะ</b> ธนู 🏹</div><div>🔱 หอก<br><b>ชนะ</b> ม้า 🐎</div><div>🏹 ธนู<br><b>ชนะ</b> หอก 🔱</div></div>
       <div class="small muted">ตีคู่ที่ชนะทาง ×${S.counterWin} / ตีคู่ที่แพ้ทาง ×${S.counterLose} · ⚕️ หมอไม่โจมตี ฮีลเพื่อนใกล้ๆ ทุก ${S.healEvery} วิ (ทีมละไม่เกิน ${S.medicMax}) · ม้าที่วิ่งมาไกลพุ่งชนครั้งแรกแรง ×${S.cavCharge}</div>
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
-      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (ใช้ได้ทุกยกรวมถึงก่อนยก 1 · 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ทีมที่เก็บไว้ถึงรอบตัดสินได้เปรียบ)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
+      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (ใช้ได้ทุกยกรวมถึงก่อนยก 1 · 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ทีมที่เก็บไว้ถึงรอบตัดสินได้เปรียบ) · <b>ถ้าเสมอ 1–1 รอบตัดสินแต่ละทีมได้เลือกไอเทมเทพเพิ่ม 1 ชิ้น</b></li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
       ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? '+ชุบ' : '')).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
@@ -425,6 +428,11 @@
       h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
     }
     h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
+    if (isDecider(m)) {
+      const t = st.teams[team] || {}; const selB = t.item && t.item.bonus ? t.item.id : null;
+      h += `<div class="panel"><h2>⭐ รอบตัดสิน: ไอเทมเทพพิเศษ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">${t.bonusUsed ? 'ใช้สิทธิ์ไปแล้ว' : 'เลือกได้ 1 ชิ้น ระดับเทพ ใช้ได้ครั้งเดียวในรอบนี้ (เพิ่มจากไอเทมที่เหลือ)'}</div><div class="item-grid">` +
+        Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB === I.id ? 'sel' : ''}" ${isCaptain() && !t.bonusUsed ? `data-act="bonus-item" data-item="${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}${I.revive ? ' + ชุบชีวิต' : ''}</div></div></div>`).join('') + `</div></div>`;
+    }
     h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น ใช้ได้ทุกยกรวมถึงยกแรก (คู่แข่งไม่เห็นจนกว่ายกจะเริ่ม) แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ทุกรอบรวมกัน · แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
@@ -621,6 +629,7 @@
       }
       else if (act === 'plan') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.id === el.dataset.item ? null : { id: el.dataset.item } }); }
+      else if (act === 'bonus-item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
       else if (act === 'tap') { tap(); }
       else if (act === 'practice-start') { practiceStart(); }
       else if (act === 'practice-stop') { ui.practice = { enemy: ui.practice.enemy, plan: ui.practice.plan }; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
@@ -644,7 +653,7 @@
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
       else if (act === 'pause') { await togglePause(); }
       else if (act === 'move-mode') { await R('game').update({ moveMode: el.dataset.mode }); toast('ตั้งค่าแล้ว'); }
-      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) upd[t + '/itemsUsed'] = null; await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
+      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) { upd[t + '/itemsUsed'] = null; upd[t + '/bonusUsed'] = null; } await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
       else if (act === 'reset-match') { if (!confirmUi(el, 'ล้างศึกและสาย? กดอีกครั้ง')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
       else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่างจริงๆ? กดอีกครั้ง')) return; await R('').set({ game: { phase: 'lobby' } }); toast('ล้างแล้ว'); }
       else if (act === 'fill-demo') { await fillDemo(); }
