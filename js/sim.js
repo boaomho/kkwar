@@ -127,13 +127,13 @@ window.Sim = (function () {
         }
         if (mod.itemTier === 0) {
           const dead = units.filter((u) => u.side === side && !u.alive);
-          if (dead.length) { const u = dead[0]; u.alive = true; u.deployed = true; u.hp = Math.round(u.maxHp * 0.5);
+          if (dead.length) { const u = dead[0]; u.alive = true; u.deployed = true; u.hp = Math.round(u.maxHp * ((D.ITEMS.water.revive || 50) / 100));
             events.push({ t: 0, type: 'revive', id: u.id, name: u.name, side }); }
         }
       }
       if (mod.item === 'net') {
         const targets = units.filter((u) => u.side === enemy && u.alive && u.deployed)
-          .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, 3);
+          .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, (D.ITEMS.net.counts || [3, 3, 3, 3])[mod.itemTier]);
         for (const u of targets) { u.stunUntil = mod.itemVal; events.push({ t: 0, type: 'stun', to: u.id, dur: mod.itemVal }); }
       }
     }

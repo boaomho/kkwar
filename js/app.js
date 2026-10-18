@@ -285,7 +285,7 @@
   function itemsHtml(team, interactive) {
     const sel = st.teams[team] && st.teams[team].item && st.teams[team].item.id;
     return `<div class="item-grid">` + teamItems(team).map((it) => {
-      const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}`;
+      const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}${I.revive && it.tier === 0 ? ' + ชุบชีวิต 1 คน' : ''}`;
       const cls = `item-card tier-${it.tier} ${it.used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel === it.id ? 'sel' : ''}`;
       const act = interactive && !it.used && !it.locked ? `data-act="item" data-item="${it.id}"` : '';
       return `<div class="${cls}" ${act}><div class="em">${I.emoji}</div><div><div class="nm">${I.name} ${it.used ? '(ใช้แล้ว)' : ''}</div><div class="tier">${tierTxt}</div><div class="ds">${I.desc} — จาก${D.ACTIVITIES[it.activity].name}</div></div></div>`;
@@ -304,7 +304,7 @@
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
       <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
-      ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit).join(' / ')}</div>`).join('')}
+      ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? '+ชุบ' : '')).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
       <button class="ghost" data-act="guide-close">ปิดคู่มือ</button></div>`;
   }
