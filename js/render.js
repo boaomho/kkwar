@@ -91,7 +91,8 @@ window.BattleRenderer = (function () {
         this.effects.push({ k: 'num', x: t.x, y: t.y, txt: (ev.crit ? '💥' : '') + '-' + ev.dmg, t0: el + (ev.ranged ? 0.25 : 0), dur: 0.9, color: ev.crit ? '#ffd23f' : (ev.counter === 'win' ? '#ff8a5c' : '#fff'), big: ev.crit || ev.charge });
         this.effects.push({ k: 'flash', id: ev.to, t0: el + (ev.ranged ? 0.25 : 0), dur: 0.2 });
         if (!ev.ranged && p(ev.from)) this.effects.push({ k: 'lunge', id: ev.from, tx: t.x, ty: t.y, t0: el, dur: 0.3 });
-        if (ev.crit) this._comment(`💥 คริติคอล! ${uf.name} ซัด ${ut.name} ไป ${ev.dmg}`, 'crit', el, 2);
+        if (ev.friendly) this._comment(`😵 ${uf.name} งง! หันไปตี ${ut.name} พวกเดียวกัน -${ev.dmg}`, 'crit', el, 2);
+        else if (ev.crit) this._comment(`💥 คริติคอล! ${uf.name} ซัด ${ut.name} ไป ${ev.dmg}`, 'crit', el, 2);
         else if (ev.charge) this._comment(`🐎 ${uf.name} ควบม้าพุ่งชน ${ut.name} เต็มแรง!`, 'crit', el, 1);
         else if (ev.counter === 'win') this._comment(`${D.CLASSES[uf.cls].emoji} ${uf.name} ไล่ถล่ม ${ut.name} แพ้ทางเต็มๆ`, '', el, 1);
         else if (ev.counter === 'lose') this._comment(`${uf.name} ตี ${ut.name} แต่แพ้ทาง เจ็บแค่ ${ev.dmg}`, '', el, 0);
@@ -107,6 +108,8 @@ window.BattleRenderer = (function () {
         if (!ev.item && uf) this._comment(`💚 หมอ ${uf.name} ฮีล ${ut.name} +${ev.amt}`, 'heal', el, 0);
       } else if (ev.type === 'enter') {
         this.effects.push({ k: 'ring', id: ev.id, t0: el, dur: 0.8 });
+      } else if (ev.type === 'confuse') {
+        this.effects.push({ k: 'confuse', id: ev.to, t0: el, dur: ev.dur });
       } else if (ev.type === 'stun') {
         this.effects.push({ k: 'stun', id: ev.to, t0: el, dur: ev.dur });
       } else if (ev.type === 'item') {
@@ -221,6 +224,15 @@ window.BattleRenderer = (function () {
             ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y + R * 0.6, R * 2.4, R * 1.2, 0, 0, Math.PI * 2); ctx.fill();
             ctx.font = `${R * 1.3 * f}px sans-serif`; ctx.fillText('🔥', x - R * 1.4, y - R * 0.6); ctx.fillText('🔥', x + R * 1.4, y - R * 0.4);
             ctx.font = `${R * 0.9}px sans-serif`; ctx.fillText('🔥', x, y - H - R * 0.1);
+          }
+          if (e.k === 'confuse') {
+            const cy = y - H - R * 0.3; const spin = el * 4;
+            ctx.save(); ctx.font = `${R * 1.5}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('😵', x, cy);
+            ctx.fillStyle = '#9ad8ff'; ctx.font = `800 ${R * 0.9}px Kanit, sans-serif`;
+            for (let i = 0; i < 3; i++) { const a = spin + i * Math.PI * 2 / 3; ctx.fillText('?', x + Math.cos(a) * R * 1.6, cy + Math.sin(a) * R * 0.6); }
+            const left = Math.max(0, e.t0 + e.dur - el); ctx.fillStyle = '#9ad8ff'; ctx.font = `800 ${R * 0.8}px Kanit, sans-serif`; ctx.fillText('งง ' + left.toFixed(1), x, y + R * 2.0);
+            ctx.restore();
           }
           if (e.k === 'stun') {
             const cy = y - R * 1.3, rr = R * 2.1;

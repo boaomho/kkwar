@@ -55,9 +55,9 @@ window.GameData = (function () {
     chain: { id: 'chain', name: 'โซ่สามัคคี', emoji: '⛓️',
              desc: 'ทั้งทีมได้เกราะ รับดาเมจน้อยลงตลอดยก',
              tiers: [40, 28, 20, 12], unit: '%' },
-    water: { id: 'water', name: 'น้ำทิพย์', emoji: '💧',
-             desc: 'ฮีลทั้งทีมทันทีตอนเริ่มยก (ระดับเทพ: ชุบชีวิต 1 คนด้วยเลือด 35%)',
-             tiers: [35, 35, 25, 15], unit: '%', revive: 35 },
+    water: { id: 'water', name: 'น้ำมนต์สับสน', emoji: '🌀',
+             desc: 'สาดใส่ศัตรูตอนเริ่มยก ตัวที่โดน "งง" หันไปตีพวกเดียวกันเอง 4 วิ และโจมตีช้าลง 30% (ระดับเทพ: ชุบชีวิต 1 คนด้วยเลือด 35%)',
+             tiers: [4, 4, 4, 4], unit: 'วินาที', counts: [4, 3, 2, 1], revive: 35 },
   };
 
   const DEFAULT_SETTINGS = {
@@ -75,7 +75,7 @@ window.GameData = (function () {
     varMin: 0.85, varMax: 1.15, critChance: 0.10, critMult: 2.0,
     moraleMax: 0.15, moraleHeal: 0.25, tapsPerPersonFull: 40,
     planFrontBonus: 1.10, planBackExposed: 1.15, cavCharge: 1.4, netDelay: 2, stunVuln: 1.3,
-    attackEvery: 1.0, archerRange: 0.38, meleeRange: 0.055, healRange: 0.2,
+    attackEvery: 1.0, atkEvery: { cav: 1.0, spear: 1.0, archer: 1.15, medic: 1.0 }, confuseSlow: 0.3, archerRange: 0.38, meleeRange: 0.055, healRange: 0.2,
   };
 
   function slug(name) {

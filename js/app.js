@@ -404,43 +404,16 @@
       if (demos[itemId] !== d) return;
       const ros = {}, cellsA = {}, cellsB = {};
       const compA = itemId === 'wheel' ? ['cav', 'cav', 'spear', 'spear', 'archer', 'archer'] : ['spear', 'spear', 'spear', 'archer', 'archer', 'medic'];
-      const compB = itemId === 'net' ? ['cav', 'cav', 'cav', 'spear', 'spear', 'archer'] : ['spear', 'spear', 'cav', 'cav', 'archer', 'archer'];
+      const compB = (itemId === 'net' || itemId === 'water') ? ['cav', 'cav', 'cav', 'spear', 'spear', 'archer'] : ['spear', 'spear', 'cav', 'cav', 'archer', 'archer'];
       compA.forEach((c, i) => { const id = 'da' + i; ros[id] = { name: 'เรา ' + (i + 1), cls: c }; cellsA[i] = id; });
       compB.forEach((c, i) => { const id = 'db' + i; ros[id] = { name: 'ศัตรู ' + (i + 1), cls: c }; cellsB[i] = id; });
       let units = Sim.createUnits({ A: { team: teamA, cells: cellsA }, B: { team: teamB, cells: cellsB } }, ros, S);
       const seed = 'demo' + itemId + d.n++;
       const inpNo = { A: { team: teamA, plan: 'front', item: null, morale: 0, cells: cellsA }, B: { team: teamB, plan: 'front', item: null, morale: 0, cells: cellsB } };
       const inpYes = { A: { ...inpNo.A, item: { id: itemId, tier: 0 } }, B: inpNo.B };
-      if (itemId === 'water') {
-        // ยก 1: ฝ่ายเราเสียเปรียบ มีคนล้ม → พักยก → ยก 2 ใช้น้ำทิพย์ ฟื้น+ชุบ
-        units.forEach((u) => { u.hp = Math.round(u.maxHp * (u.side === 'A' ? 0.3 + 0.08 * (u.cell % 3) : 0.55)); });
-        const w1 = Sim.simulateWave(units, 0, inpNo, ros, S, seed, 6);
-        // ให้แน่ใจว่าจบยก 1 มีคนล้ม 2 และที่เหลือเลือดกลางๆ
-        const ours = w1.units.filter((u) => u.side === 'A');
-        let deadN = ours.filter((u) => !u.alive).length;
-        for (const u of ours.sort((a, b) => a.hp - b.hp)) { if (deadN >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; deadN++; } }
-        for (const u of ours) if (u.alive) u.hp = Math.round(u.maxHp * 0.3);
-        // ศัตรูก็เสียไป 2 และเลือดเหลือง (สู้กันมาเท่าๆ กัน)
-        const en = w1.units.filter((u) => u.side === 'B'); let dB = en.filter((u) => !u.alive).length;
-        for (const u of en.sort((a, b) => a.hp - b.hp)) { if (dB >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; dB++; } }
-        for (const u of en) if (u.alive) u.hp = Math.round(u.maxHp * 0.36);
-        ours.forEach((u) => { if (u.cls === 'medic' && !u.alive) { const other = ours.find((x) => x.alive && x.cls !== 'medic'); if (other) { other.alive = false; other.hp = 0; u.alive = true; u.hp = Math.round(u.maxHp * 0.3); } } });
-        setTag('ยก 1: ฝ่ายเราโดนถล่ม…'); r.playWave(w1, Date.now() + 300, 1);
-        d.timer = setTimeout(() => {
-          if (demos[itemId] !== d) return;
-          setTag('⏸ พักยก → กัปตันกดใช้ 💧 น้ำทิพย์ (เทพ)'); r.setStatic(w1.units);
-          d.timer = setTimeout(() => {
-            if (demos[itemId] !== d) return;
-            const w2 = bestWave(w1.units, 1, inpYes, ros, seed, 7);
-            setTag('ยก 2: +35% ทั้งทีม + ชุบ 1 คน → พลิกกลับมารุม!'); r.playWave(w2, Date.now() + 300, 1);
-            d.timer = setTimeout(loop, 8000);
-          }, 2500);
-        }, 6800);
-        return;
-      }
       units.forEach((u) => { u.deployed = true; });
       const w = bestWave(units, 0, inpYes, ros, seed, 10);
-      setTag({ net: 'เริ่มยก → 2 วิ โยน 🕸️ ตรึง 4 ตัวที่บุกมา 4 วิ โดนตีแรงขึ้น 30%', wheel: '🔥 ล้อไฟ: ทั้งทีมตีแรงขึ้น 35% ทั้งยก', chain: '🛡️ โซ่สามัคคี: ทั้งทีมรับดาเมจลด 40% ทั้งยก' }[itemId] || '');
+      setTag({ net: 'เริ่มยก → 2 วิ โยน 🕸️ ตรึง 4 ตัวที่บุกมา 4 วิ โดนตีแรงขึ้น 30%', wheel: '🔥 ล้อไฟ: ทั้งทีมตีแรงขึ้น 35% ทั้งยก', chain: '🛡️ โซ่สามัคคี: ทั้งทีมรับดาเมจลด 40% ทั้งยก', water: '🌀 น้ำมนต์: ศัตรู 4 ตัวงง หันไปตีกันเอง 4 วิ โจมตีช้าลง 30%' }[itemId] || '');
       r.playWave(w, Date.now() + 300, 1);
       d.timer = setTimeout(loop, 11500);
     };
@@ -513,7 +486,7 @@
       const waterTier0 = it && it.id === 'water' && (it.bonus || (teamItems(team).find((x) => x.id === 'water') || {}).tier === 0);
       if (waterTier0 && m.stage !== 'plan') {
         const dead = computeMatch().units.filter((u) => u.team === team && !u.alive);
-        if (dead.length) h += `<div class="panel"><h2>✨ น้ำทิพย์เทพ: เลือกคนที่จะชุบชีวิต ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="name-grid">` + dead.map((u) => `<button class="name-btn ${(it.revive || dead[0].id) === u.id ? 'primary' : ''}" ${isCaptain() ? `data-act="revive" data-pid="${u.id}"` : 'disabled'}>${D.CLASSES[u.cls].emoji} ${esc(u.name)}</button>`).join('') + `</div><div class="hint">ถ้าไม่เลือก จะชุบคนแรกที่ล้ม</div></div>`;
+        if (dead.length) h += `<div class="panel"><h2>✨ น้ำมนต์ระดับเทพ: เลือกคนที่จะชุบชีวิต ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="name-grid">` + dead.map((u) => `<button class="name-btn ${(it.revive || dead[0].id) === u.id ? 'primary' : ''}" ${isCaptain() ? `data-act="revive" data-pid="${u.id}"` : 'disabled'}>${D.CLASSES[u.cls].emoji} ${esc(u.name)}</button>`).join('') + `</div><div class="hint">ถ้าไม่เลือก จะชุบคนแรกที่ล้ม</div></div>`;
       }
     }
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;

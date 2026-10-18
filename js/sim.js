@@ -120,11 +120,9 @@ window.Sim = (function () {
         }
       }
       if (mod.item === 'water') {
-        for (const u of units) if (u.side === side && u.alive && u.deployed) {
-          const h = Math.round(u.maxHp * mod.itemVal / 100);
-          u.hp = Math.min(u.maxHp, u.hp + h);
-          events.push({ t: 0, type: 'heal', to: u.id, amt: h, item: true });
-        }
+        const targets = units.filter((u) => u.side === enemy && u.alive && u.deployed)
+          .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, (D.ITEMS.water.counts || [3, 3, 3, 3])[mod.itemTier]);
+        for (const u of targets) { u.confusedUntil = mod.itemVal; events.push({ t: 0, type: 'confuse', to: u.id, dur: mod.itemVal }); }
         if (mod.itemTier === 0) {
           const dead = units.filter((u) => u.side === side && !u.alive);
           const pick = dead.find((u) => u.id === mod.reviveId) || dead[0];
@@ -163,7 +161,7 @@ window.Sim = (function () {
     for (let tick = 0; tick < ticks; tick++) {
       const t = tick * TICK;
       // snapshot เฟรม
-      frames.push(units.map((u) => [u.id, +u.x.toFixed(4), +u.y.toFixed(4), Math.max(0, Math.round(u.hp)), (u.alive ? 1 : 0) | (u.deployed ? 2 : 0) | (u.stunUntil > t ? 4 : 0) | (u.engaged ? 8 : 0)]));
+      frames.push(units.map((u) => [u.id, +u.x.toFixed(4), +u.y.toFixed(4), Math.max(0, Math.round(u.hp)), (u.alive ? 1 : 0) | (u.deployed ? 2 : 0) | (u.stunUntil > t ? 4 : 0) | (u.engaged ? 8 : 0) | ((u.confusedUntil || -1) > t ? 16 : 0)]));
       const alive = { A: 0, B: 0 };
       for (const u of units) if (u.alive && u.deployed) alive[u.side]++;
       if (alive.A === 0 || alive.B === 0) { endTick = tick; break; }
@@ -199,8 +197,9 @@ window.Sim = (function () {
           }
           continue;
         }
-        const enemies = enemiesOf(u).map((e) => snap[e.id]);
-        const target = pickTarget(su, enemies, mod.plan);
+        const confused = (u.confusedUntil || -1) > t;
+        const enemies = (confused ? units.filter((e) => e.side === u.side && e.id !== u.id && e.alive && e.deployed) : enemiesOf(u)).map((e) => snap[e.id]);
+        const target = pickTarget(su, enemies, confused ? 'front' : mod.plan);
         if (!target) continue;
         const range = u.cls === 'archer' ? S.archerRange : S.meleeRange;
         const d = dist(su, target);
@@ -213,8 +212,8 @@ window.Sim = (function () {
         }
         u.cd -= TICK;
         if (u.cd > 0) continue;
-        u.cd = S.attackEvery;
-        attacks.push({ u, target, charge: u.cls === 'cav' && (u.moving || 0) >= 5 });
+        u.cd = (S.atkEvery && S.atkEvery[u.cls] ? S.atkEvery[u.cls] : S.attackEvery) * (confused ? 1 / (1 - (S.confuseSlow || 0.3)) : 1);
+        attacks.push({ u, target, charge: u.cls === 'cav' && (u.moving || 0) >= 5, confused });
         u.moving = 0;
       }
       // เฟส 2: ใช้ผล
@@ -243,7 +242,7 @@ window.Sim = (function () {
         dmg = Math.max(1, Math.round(dmg));
         if (!target.alive) continue; // ล้มไปแล้วใน tick เดียวกัน
         target.hp -= dmg;
-        events.push({ t, type: 'hit', from: u.id, to: target.id, dmg, crit, counter: cm.k, ranged: u.cls === 'archer', charge: !!a.charge });
+        events.push({ t, type: 'hit', from: u.id, to: target.id, dmg, crit, counter: cm.k, ranged: u.cls === 'archer', charge: !!a.charge, friendly: u.side === target.side });
         if (target.hp <= 0) {
           target.hp = 0; target.alive = false;
           events.push({ t, type: 'die', id: target.id, name: target.name, cls: target.cls, side: target.side, by: u.id });
@@ -263,7 +262,7 @@ window.Sim = (function () {
     }
     // เฟรมสุดท้าย
     frames.push(units.map((u) => [u.id, +u.x.toFixed(4), +u.y.toFixed(4), Math.max(0, Math.round(u.hp)), (u.alive ? 1 : 0) | (u.deployed ? 2 : 0)]));
-    units.forEach((u) => { u.stunUntil = -1; u.engaged = false; });
+    units.forEach((u) => { u.stunUntil = -1; u.confusedUntil = -1; u.engaged = false; });
     return { units, events, frames, endTick, ticks, duration, waveIdx, sideMod };
   }
 
