@@ -11,7 +11,7 @@ const path = require('path');
   await admin.waitForSelector('[data-act="fill-demo"]'); await admin.click('[data-act="fill-demo"]'); await admin.waitForTimeout(300);
   await admin.click('[data-act="atab"][data-tab="rank"]'); await admin.waitForTimeout(200);
   const order = ['red','yellow','blue','purple'];
-  for (const a of ['pool','kart','legs','water']) { const o = [...order].sort(() => Math.random()-0.5); for (let i=0;i<4;i++) await admin.selectOption(`select[data-rank="${a}"][data-pos="${i}"]`, o[i]); }
+  for (const a of ['pool','kart','legs','water']) { const o = [...order].sort(() => Math.random()-0.5); for (let i=0;i<4;i++) { await admin.click(`[data-act="rank-pick"][data-a="${a}"][data-team="${o[i]}"]`); await admin.waitForTimeout(80); } }
   await admin.click('[data-act="save-rank"]'); await admin.waitForTimeout(300);
   await admin.click('[data-act="atab"][data-tab="control"]'); await admin.waitForTimeout(200);
   await admin.screenshot({ path: 'tools/shots/admin.png' });
