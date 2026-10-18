@@ -184,6 +184,7 @@
       upd.wins = wins; decided = wins.a >= S.roundsToWin || wins.b >= S.roundsToWin;
     }
     upd.stage = next; upd.stageStart = now(); upd.stageEnds = now() + (next === 'result' ? (decided ? 0 : S.tResult) : stageDur(next)) * 1000;
+    const curStage = await R('match/stage').get(); if (curStage !== m.stage) return; // กันเดินซ้ำจากสองเครื่อง
     const teamUpd = {}; for (const k of Object.keys(upd)) if (k.startsWith('__teams/')) { teamUpd[k.slice(8)] = upd[k]; delete upd[k]; }
     if (Object.keys(teamUpd).length) await R('teams').update(teamUpd);
     await R('match').update(upd);

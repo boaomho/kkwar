@@ -27,7 +27,7 @@ const path = require('path');
   await player.screenshot({ path: 'tools/shots/p-plan.png', fullPage: true });
   await screen.screenshot({ path: 'tools/shots/screen-plan.png' });
   const stageOf = async () => (await admin.evaluate(() => { const d = JSON.parse(localStorage.getItem('kkwar-mock-db')); return d.kkwar.match && d.kkwar.match.stage; }));
-  const waitStage = async (stg, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await stageOf() === stg) return true; await admin.waitForTimeout(500); } throw new Error('stage ' + stg + ' not reached, at ' + await stageOf()); };
+  const waitStage = async (stg, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const cur = await stageOf(); if (cur === stg || cur === 'result') return true; await admin.waitForTimeout(500); } throw new Error('stage ' + stg + ' not reached, at ' + await stageOf()); };
   for (let i = 0; i < 20; i++) { const b = await player.$('[data-act="tap"]'); if (b) await b.click(); }
   await admin.click('[data-act="advance"]');
   await waitStage('wave1', 5000); await admin.waitForTimeout(4000);
@@ -51,7 +51,7 @@ const path = require('path');
   while (!(await decided()) && guard++ < 3) {
     await admin.click('[data-act="next-round"]'); await waitStage('plan', 5000); await admin.waitForTimeout(500);
     await player.screenshot({ path: 'tools/shots/p-round' + (guard + 1) + '-plan.png', fullPage: true });
-    for (const stg of ['wave1', 'pause1', 'wave2', 'pause2', 'wave3', 'result']) { await admin.click('[data-act="advance"]').catch(() => {}); await waitStage(stg, 40000); if (stg === 'pause1') { const it = await player.$('[data-act="item"]'); if (it) await it.click(); } await admin.waitForTimeout(600); }
+    let prev = 'plan'; for (const stg of ['wave1', 'pause1', 'wave2', 'pause2', 'wave3', 'result']) { if (await stageOf() === prev) await admin.click('[data-act="advance"]').catch(() => {}); await waitStage(stg, 40000); prev = stg; if (stg === 'pause1') { const it = await player.$('[data-act="item"]'); if (it) await it.click(); } await admin.waitForTimeout(600); }
   }
   console.log('decided after rounds:', guard + 1);
   await screen.screenshot({ path: 'tools/shots/screen-result.png', fullPage: true });

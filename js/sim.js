@@ -242,7 +242,7 @@ window.Sim = (function () {
         for (let j = i + 1; j < units.length; j++) {
           const b = units[j]; if (!b.alive || !b.deployed || a.side !== b.side) continue;
           const d = dist(a, b);
-          if (d < 0.045 && d > 0.0001) { const push = (0.045 - d) / 2; const dx = (a.x - b.x) / d, dy = (a.y - b.y) / d;
+          if (d < 0.06 && d > 0.0001) { const push = (0.06 - d) / 2; const dx = (a.x - b.x) / d, dy = (a.y - b.y) / d;
             a.x += dx * push; a.y += dy * push; b.x -= dx * push; b.y -= dy * push; }
         }
         a.x = Math.max(0.03, Math.min(0.97, a.x)); a.y = Math.max(0.08, Math.min(0.92, a.y));

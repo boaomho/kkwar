@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><body style="background:#1a3a24;margin:20px"><script src="../js/data.js"></script><script src="../js/sprites.js"></script>
+<script>
+const D=window.GameData; for (const t of D.TEAM_ORDER){ const row=document.createElement('div'); for (const c of ['spear','archer','cav','medic']){ const i=Sprites.get(c, D.TEAMS[t].color, D.TEAMS[t].dark); i.style.width='150px'; row.appendChild(i);} const b=Sprites.banner(D.TEAMS[t].color,D.TEAMS[t].dark); b.style.height='150px'; row.appendChild(b); document.body.appendChild(row);} const r=document.createElement('div'); [0,1].forEach(k=>{const i=Sprites.tree(k); i.style.height='120px'; r.appendChild(i)}); document.body.appendChild(r);
+</script>

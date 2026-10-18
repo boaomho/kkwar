@@ -76,6 +76,12 @@ window.BattleRenderer = (function () {
       if (this.onTick) this.onTick(el, i0 >= last);
     }
     unitById(id) { return this.units.find((u) => u.id === id); }
+    _moving(id) {
+      const w = this.wave; if (!w) return false;
+      const i = Math.min(w.frames.length - 1, Math.floor(this.elapsed() / TICK)); const j = Math.max(0, i - 2);
+      const a = w.frames[j].find((r) => r[0] === id), b = w.frames[i].find((r) => r[0] === id); if (!a || !b) return false;
+      return Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) > 0.002;
+    }
     _event(ev, el) {
       const p = (id) => this.pos[id];
       const uf = this.unitById(ev.from), ut = this.unitById(ev.to);
@@ -137,15 +143,28 @@ window.BattleRenderer = (function () {
       for (const y of [0.37, 0.63]) { ctx.beginPath(); ctx.moveTo(0, y * h); ctx.lineTo(w, y * h); ctx.stroke(); }
       ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(255,255,255,0.18)';
       ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke(); ctx.setLineDash([]);
+      // พื้นหญ้า ลายจางๆ
+      ctx.fillStyle = 'rgba(255,255,255,0.035)';
+      for (let i = 0; i < 14; i++) { const gx = ((i * 137) % 100) / 100 * w, gy = ((i * 71 + 13) % 100) / 100 * h; ctx.beginPath(); ctx.ellipse(gx, gy, w * 0.06, h * 0.03, 0, 0, Math.PI * 2); ctx.fill(); }
+      // ต้นไม้ขอบบน-ล่าง และธงทีม
+      if (window.Sprites) {
+        const th = h * 0.2;
+        const spots = [[0.05, 0, 0], [0.18, 1, -0.02], [0.33, 0, 0.01], [0.5, 1, -0.01], [0.66, 0, 0], [0.8, 1, -0.02], [0.94, 0, 0.01]];
+        for (const [fx, k, dy] of spots) { const img = Sprites.tree(k); if (img.complete && img.naturalWidth) { ctx.globalAlpha = 0.9; ctx.drawImage(img, fx * w - th * 0.19, -th * 0.45 + dy * h, th * 0.75, th); ctx.drawImage(img, (1 - fx) * w - th * 0.19, h - th * 0.55 + dy * h, th * 0.75, th); ctx.globalAlpha = 1; } }
+        const bA = Sprites.banner(teamColor(this.teams.A), teamDark(this.teams.A)), bB = Sprites.banner(teamColor(this.teams.B), teamDark(this.teams.B));
+        const bh = h * 0.3;
+        if (bA.complete && bA.naturalWidth) ctx.drawImage(bA, w * 0.012, h * 0.1, bh / 3, bh);
+        if (bB.complete && bB.naturalWidth) { ctx.save(); ctx.translate(w - w * 0.012, 0); ctx.scale(-1, 1); ctx.drawImage(bB, 0, h * 0.1, bh / 3, bh); ctx.restore(); }
+      }
       // ชื่อทีม
       ctx.font = `800 ${Math.max(12, w * 0.028)}px Kanit, sans-serif`; ctx.textBaseline = 'top';
-      ctx.fillStyle = teamColor(this.teams.A); ctx.textAlign = 'left'; ctx.fillText(D.TEAMS[this.teams.A].name, 10, 8);
-      ctx.fillStyle = teamColor(this.teams.B); ctx.textAlign = 'right'; ctx.fillText(D.TEAMS[this.teams.B].name, w - 10, 8);
+      ctx.fillStyle = teamColor(this.teams.A); ctx.textAlign = 'left'; ctx.fillText(D.TEAMS[this.teams.A].name, w * 0.05, 8);
+      ctx.fillStyle = teamColor(this.teams.B); ctx.textAlign = 'right'; ctx.fillText(D.TEAMS[this.teams.B].name, w - w * 0.05, 8);
     }
     _drawUnits(ctx) {
       const w = this.w, h = this.h, R = Math.max(12, w * 0.034);
       const el = this.mode === 'play' ? this.elapsed() : 0;
-      const order = [...this.units].sort((a, b) => (this.pos[a.id] ? this.pos[a.id].y : a.y) - (this.pos[b.id] ? this.pos[b.id].y : b.y));
+      const order = [...this.units].sort((a, b) => { const pa = this.pos[a.id] || a, pb = this.pos[b.id] || b; const da = pa.alive === false ? 0 : 1, db = pb.alive === false ? 0 : 1; return da !== db ? da - db : pa.y - pb.y; });
       for (const u of order) {
         const p = this.pos[u.id] || { x: u.x, y: u.y, hp: u.hp, alive: u.alive, deployed: u.deployed };
         let x = p.x * w, y = p.y * h;
@@ -153,40 +172,52 @@ window.BattleRenderer = (function () {
         for (const e of this.effects) if (e.k === 'lunge' && e.id === u.id) { const k = Math.sin(Math.min(1, (el - e.t0) / e.dur) * Math.PI); x += (e.tx * w - x) * 0.35 * k; y += (e.ty * h - y) * 0.35 * k; }
         const dead = !p.alive;
         const ghost = !p.deployed && !dead;
+        const H = R * 4.4, W = H * 100 / 114;
+        const spr = window.Sprites ? Sprites.get(u.cls, teamColor(u.team), teamDark(u.team)) : null;
+        const ok = spr && spr.complete && spr.naturalWidth;
+        const flip = u.side === 'B';
         ctx.save();
         if (dead) {
-          ctx.globalAlpha = 0.55; ctx.font = `${R * 1.6}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('💀', x, y); ctx.globalAlpha = 0.6;
-          this._label(ctx, u.name, x, y + R * 1.2, R, '#777');
+          ctx.globalAlpha = 0.28;
+          if (ok) { ctx.translate(x, y + R * 0.9); ctx.rotate(flip ? Math.PI / 2 : -Math.PI / 2); ctx.drawImage(spr, -W * 0.35, -H * 0.7 + R * 0.3, W * 0.7, H * 0.7); ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); }
+          ctx.globalAlpha = 0.6; ctx.font = `${R * 0.9}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💀', x, y);
+          ctx.globalAlpha = 0.5; this._label(ctx, u.name, x, y + R * 0.9, R * 0.8, '#777');
           ctx.restore(); continue;
         }
         if (ghost) ctx.globalAlpha = 0.3;
         // เงา
-        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + R * 0.9, R * 0.9, R * 0.35, 0, 0, Math.PI * 2); ctx.fill();
-        // ตัว
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + R * 0.9, R * 1.1, R * 0.35, 0, 0, Math.PI * 2); ctx.fill();
         let flash = false; for (const e of this.effects) if (e.k === 'flash' && e.id === u.id && el >= e.t0 && el < e.t0 + e.dur) flash = true;
-        const grad = ctx.createRadialGradient(x - R * 0.3, y - R * 0.4, R * 0.2, x, y, R * 1.1);
-        grad.addColorStop(0, flash ? '#fff' : teamColor(u.team)); grad.addColorStop(1, flash ? '#ffd' : teamDark(u.team));
-        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
-        ctx.lineWidth = ghost ? 1.5 : 2.5; ctx.strokeStyle = ghost ? '#fff' : (u.cls === 'medic' ? '#5ef0a0' : '#ffffffcc'); if (ghost) ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
-        // อิโมจิอาชีพ
-        ctx.font = `${R * 1.25}px "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.save(); if (u.side === 'B' && u.cls === 'cav') { ctx.translate(x, y); ctx.scale(-1, 1); ctx.fillText(D.CLASSES[u.cls].emoji, 0, R * 0.05); } else ctx.fillText(D.CLASSES[u.cls].emoji, x, y + R * 0.05); ctx.restore();
-        // sparkle / stun
+        const moving = this.mode === 'play' && this._moving(u.id);
+        const bob = moving ? Math.abs(Math.sin(el * 14 + u.id.length)) * R * 0.25 : Math.sin(el * 3 + u.id.length) * R * 0.06;
+        if (ok) {
+          ctx.save(); ctx.translate(x, y + R * 0.9 - bob); if (flip) ctx.scale(-1, 1);
+          if (flash) ctx.filter = 'brightness(2.2) saturate(0.4)';
+          ctx.drawImage(spr, -W / 2, -H, W, H);
+          ctx.restore();
+        } else {
+          const grad = ctx.createRadialGradient(x - R * 0.3, y - R * 0.4, R * 0.2, x, y, R * 1.1);
+          grad.addColorStop(0, flash ? '#fff' : teamColor(u.team)); grad.addColorStop(1, flash ? '#ffd' : teamDark(u.team));
+          ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+          ctx.font = `${R * 1.25}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(D.CLASSES[u.cls].emoji, x, y + R * 0.05);
+        }
+        // sparkle / stun / ring
         for (const e of this.effects) {
           if (e.id !== u.id || el < e.t0 || el > e.t0 + e.dur) continue;
-          if (e.k === 'sparkle') { ctx.font = `${R}px sans-serif`; ctx.fillText('✨', x + R * 0.9, y - R * 0.9); }
-          if (e.k === 'stun') { ctx.font = `${R * 0.9}px sans-serif`; ctx.fillText('🕸️', x, y - R * 1.9); }
-          if (e.k === 'ring') { const k = (el - e.t0) / e.dur; ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, R * (1 + k * 1.5), 0, Math.PI * 2); ctx.stroke(); }
+          ctx.font = `${R}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          if (e.k === 'sparkle') ctx.fillText('✨', x + R * 1.1, y - R * 2.2);
+          if (e.k === 'stun') { ctx.font = `${R * 1.1}px sans-serif`; ctx.fillText('🕸️', x, y - H + R * 0.2); }
+          if (e.k === 'ring') { const k = (el - e.t0) / e.dur; ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y + R * 0.9, R * (1 + k * 2), R * 0.4 * (1 + k * 2), 0, 0, Math.PI * 2); ctx.stroke(); }
         }
         // HP
         const bw = R * 2.2, bh = Math.max(4, R * 0.28);
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - bw / 2, y - R - bh - 4, bw, bh);
+        const hy = y + R * 0.9 - H - bh - 3;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - bw / 2, hy, bw, bh);
         const pct = Math.max(0, Math.min(1, p.hp / u.maxHp));
         ctx.fillStyle = pct > 0.5 ? '#3ddc84' : pct > 0.25 ? '#f5c518' : '#ff4d5e';
-        ctx.fillRect(x - bw / 2, y - R - bh - 4, bw * pct, bh);
+        ctx.fillRect(x - bw / 2, hy, bw * pct, bh);
         // ชื่อ
-        this._label(ctx, u.name, x, y + R * 1.35, R, teamColor(u.team));
+        this._label(ctx, u.name, x, y + R * 1.2, R, teamColor(u.team));
         ctx.restore();
       }
     }
@@ -207,10 +238,10 @@ window.BattleRenderer = (function () {
         const k = Math.min(1, (el - e.t0) / e.dur);
         if (e.k === 'num') {
           ctx.font = `800 ${e.big ? R * 1.3 : R * 0.95}px Kanit, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.globalAlpha = 1 - k; ctx.fillStyle = '#000'; ctx.fillText(e.txt, e.x * w + 1.5, e.y * h - R * 1.6 - k * R * 1.8 + 1.5);
-          ctx.fillStyle = e.color; ctx.fillText(e.txt, e.x * w, e.y * h - R * 1.6 - k * R * 1.8); ctx.globalAlpha = 1;
+          ctx.globalAlpha = 1 - k; ctx.fillStyle = '#000'; ctx.fillText(e.txt, e.x * w + 1.5, e.y * h - R * 3.2 - k * R * 1.8 + 1.5);
+          ctx.fillStyle = e.color; ctx.fillText(e.txt, e.x * w, e.y * h - R * 3.2 - k * R * 1.8); ctx.globalAlpha = 1;
         } else if (e.k === 'arrow') {
-          const x = (e.x0 + (e.x1 - e.x0) * k) * w, y = (e.y0 + (e.y1 - e.y0) * k) * h - Math.sin(k * Math.PI) * R * 2;
+          const x = (e.x0 + (e.x1 - e.x0) * k) * w, y = (e.y0 + (e.y1 - e.y0) * k) * h - R * 1.6 - Math.sin(k * Math.PI) * R * 2;
           const ang = Math.atan2((e.y1 - e.y0) * h, (e.x1 - e.x0) * w);
           ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.strokeStyle = '#ffe8b0'; ctx.lineWidth = 2.5;
           ctx.beginPath(); ctx.moveTo(-R * 0.9, 0); ctx.lineTo(R * 0.4, 0); ctx.stroke();
@@ -218,7 +249,7 @@ window.BattleRenderer = (function () {
         } else if (e.k === 'death') {
           const u = this.unitById(e.id), p = this.pos[e.id]; if (!p) continue;
           ctx.globalAlpha = (1 - k) * 0.8; ctx.font = `${R * 1.4}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('💢', p.x * w, p.y * h - k * R * 2); ctx.globalAlpha = 1;
+          ctx.fillText('💢', p.x * w, p.y * h - R * 2 - k * R * 2); ctx.globalAlpha = 1;
         } else if (e.k === 'banner') {
           ctx.globalAlpha = k < 0.15 ? k / 0.15 : (k > 0.8 ? (1 - k) / 0.2 : 1);
           ctx.font = `800 ${R * 1.8}px Kanit, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
