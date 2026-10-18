@@ -94,7 +94,7 @@ window.Sim = (function () {
       if (it && D.ITEMS[it.id]) {
         const tier = Math.max(0, Math.min(3, (it.tier | 0)));
         const val = D.ITEMS[it.id].tiers[tier];
-        mod.item = it.id; mod.itemTier = tier; mod.itemVal = val;
+        mod.item = it.id; mod.itemTier = tier; mod.itemVal = val; mod.reviveId = it.revive || null;
         if (it.id === 'wheel') mod.wheel = 1 + val / 100;
         if (it.id === 'chain') mod.chain = 1 - val / 100;
         events.push({ t: 0, type: 'item', side, item: it.id, tier, val });
@@ -127,7 +127,8 @@ window.Sim = (function () {
         }
         if (mod.itemTier === 0) {
           const dead = units.filter((u) => u.side === side && !u.alive);
-          if (dead.length) { const u = dead[0]; u.alive = true; u.deployed = true; u.hp = Math.round(u.maxHp * ((D.ITEMS.water.revive || 50) / 100));
+          const pick = dead.find((u) => u.id === mod.reviveId) || dead[0];
+          if (pick) { const u = pick; u.alive = true; u.deployed = true; u.hp = Math.round(u.maxHp * ((D.ITEMS.water.revive || 50) / 100));
             events.push({ t: 0, type: 'revive', id: u.id, name: u.name, side }); }
         }
       }

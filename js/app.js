@@ -168,10 +168,10 @@
         const t = st.teams[team] || {};
         let item = null;
         if (t.item && t.item.id && t.item.bonus) {
-          if (isDecider(m) && !t.bonusUsed && D.ITEMS[t.item.id]) { item = { id: t.item.id, tier: 0 }; upd['__teams/' + team + '/bonusUsed'] = true; }
+          if (isDecider(m) && !t.bonusUsed && D.ITEMS[t.item.id]) { item = { id: t.item.id, tier: 0, revive: t.item.revive || null }; upd['__teams/' + team + '/bonusUsed'] = true; }
         } else if (t.item && t.item.id) {
           const its = teamItems(team).find((x) => x.id === t.item.id);
-          if (its && !its.used && !its.locked) { item = { id: its.id, tier: its.tier }; upd['__teams/' + team + '/itemsUsed/' + its.id] = true; }
+          if (its && !its.used && !its.locked) { item = { id: its.id, tier: its.tier, revive: t.item.revive || null }; upd['__teams/' + team + '/itemsUsed/' + its.id] = true; }
         }
         inputs[side] = { team, cells: snap.cells, roster: snap.roster, plan: snap.plan, item, morale: moraleFor(side, MORALE_STAGES[next]) };
         upd['__teams/' + team + '/item'] = null;
@@ -488,6 +488,14 @@
         Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB === I.id ? 'sel' : ''}" ${isCaptain() && !t.bonusUsed ? `data-act="bonus-item" data-item="${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}${I.revive ? ' + ชุบชีวิต' : ''}</div></div></div>`).join('') + `</div></div>`;
     }
     h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น ใช้ได้ทุกยกรวมถึงยกแรก (คู่แข่งไม่เห็นจนกว่ายกจะเริ่ม) แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ทุกรอบรวมกัน · แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
+    {
+      const t = st.teams[team] || {}; const it = t.item;
+      const waterTier0 = it && it.id === 'water' && (it.bonus || (teamItems(team).find((x) => x.id === 'water') || {}).tier === 0);
+      if (waterTier0 && m.stage !== 'plan') {
+        const dead = computeMatch().units.filter((u) => u.team === team && !u.alive);
+        if (dead.length) h += `<div class="panel"><h2>✨ น้ำทิพย์เทพ: เลือกคนที่จะชุบชีวิต ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="name-grid">` + dead.map((u) => `<button class="name-btn ${(it.revive || dead[0].id) === u.id ? 'primary' : ''}" ${isCaptain() ? `data-act="revive" data-pid="${u.id}"` : 'disabled'}>${D.CLASSES[u.cls].emoji} ${esc(u.name)}</button>`).join('') + `</div><div class="hint">ถ้าไม่เลือก จะชุบคนแรกที่ล้ม</div></div>`;
+      }
+    }
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
@@ -685,6 +693,7 @@
       else if (act === 'plan') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.id === el.dataset.item ? null : { id: el.dataset.item } }); }
       else if (act === 'bonus-item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
+      else if (act === 'revive') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team + '/item').update({ revive: el.dataset.pid }); }
       else if (act === 'tap') { tap(); }
       else if (act === 'practice-start') { practiceStart(); }
       else if (act === 'practice-stop') { ui.practice = { enemy: ui.practice.enemy, plan: ui.practice.plan }; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
