@@ -111,6 +111,7 @@ window.BattleRenderer = (function () {
         this.effects.push({ k: 'stun', id: ev.to, t0: el, dur: ev.dur });
       } else if (ev.type === 'item') {
         const it = D.ITEMS[ev.item]; const tn = D.TEAMS[this.teams[ev.side]].name;
+        if (ev.item === 'chain' || ev.item === 'wheel') for (const u of this.units) if (u.side === ev.side && u.alive) this.effects.push({ k: ev.item === 'chain' ? 'shield' : 'fire', id: u.id, t0: el, dur: this.wave ? this.wave.duration : 15 });
         this._comment(`${it.emoji} ${tn} ใช้ ${it.name} ระดับ${D.TIER_NAMES[ev.tier]}!`, 'crit', el, 3);
         this.effects.push({ k: 'banner', txt: `${it.emoji} ${it.name}`, side: ev.side, t0: el, dur: 1.6 });
       } else if (ev.type === 'revive') {
@@ -206,6 +207,8 @@ window.BattleRenderer = (function () {
           if (e.id !== u.id || el < e.t0 || el > e.t0 + e.dur) continue;
           ctx.font = `${R}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           if (e.k === 'sparkle') ctx.fillText('✨', x + R * 1.1, y - R * 2.2);
+          if (e.k === 'shield') { ctx.globalAlpha = 0.85; ctx.fillText('🛡️', x - R * 1.3, y - R * 1.2); ctx.globalAlpha = 1; }
+          if (e.k === 'fire') { const f = 0.8 + 0.2 * Math.sin(el * 12); ctx.font = `${R * f}px sans-serif`; ctx.fillText('🔥', x + R * 1.2, y - R * 1.0); }
           if (e.k === 'stun') { ctx.font = `${R * 1.1}px sans-serif`; ctx.fillText('🕸️', x, y - H + R * 0.2); }
           if (e.k === 'ring') { const k = (el - e.t0) / e.dur; ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y + R * 0.9, R * (1 + k * 2), R * 0.4 * (1 + k * 2), 0, 0, Math.PI * 2); ctx.stroke(); }
         }

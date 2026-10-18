@@ -307,7 +307,7 @@
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
       <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (ใช้ได้ทุกยกรวมถึงก่อนยก 1 · 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ทีมที่เก็บไว้ถึงรอบตัดสินได้เปรียบ) · <b>ถ้าเสมอ 1–1 รอบตัดสินแต่ละทีมได้เลือกไอเทมเทพเพิ่ม 1 ชิ้น</b></li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
-      ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? '+ชุบ' : '')).join(' / ')}</div>`).join('')}
+      ${D.ACTIVITY_ORDER.map((a) => { const A = D.ACTIVITIES[a], I = D.ITEMS[A.item]; return `<div class="demo-card"><div class="row"><b>🏁 ${A.name}</b> <span class="muted">→</span> <b>${I.emoji} ${I.name}</b></div><div class="arena demo"><canvas id="demo-${A.item}" data-demo="${A.item}"></canvas><div class="overlay"><div class="demo-tag">ตัวอย่าง: ระดับเทพ</div></div></div><div class="small">${I.desc}</div><div class="small muted">${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? ' + ชุบชีวิต' : '')).join(' / ')}</div></div>`; }).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
       <button class="ghost" data-act="guide-close">ปิดคู่มือ</button></div>`;
   }
@@ -377,6 +377,39 @@
       if (r.done) h += `<div class="small">${r.result.winner === 'A' ? 'ทัพนี้ชนะหุ่น' : 'ทัพนี้แพ้หุ่น'} · เลือดเหลือ ${Math.round(r.result.s.A.pct * 100)}% vs ${Math.round(r.result.s.B.pct * 100)}% · ${r.result.reason === 'wipe' ? 'ล้างบาง' : 'วัดเลือดรวม'}</div>` + statsHtml({ waves: r.waves, units: r.units });
     }
     return h + `</div>`;
+  }
+  const demos = {}; // itemId -> {renderer, timer}
+  function demoRoster(cls) { return cls; }
+  function startDemo(itemId, canvas) {
+    const S = settings();
+    const cur = demos[itemId]; if (cur && cur.renderer.canvas === canvas) return;
+    if (cur) { cur.renderer.stop(); clearTimeout(cur.timer); }
+    const teamA = 'blue', teamB = 'red';
+    const r = new BattleRenderer(canvas, { teams: { A: teamA, B: teamB }, commentaryEl: null, now: () => Date.now() });
+    const d = { renderer: r, timer: null, n: 0 };
+    demos[itemId] = d;
+    const loop = () => {
+      if (demos[itemId] !== d) return;
+      const ros = {}, cellsA = {}, cellsB = {};
+      const compA = itemId === 'wheel' ? ['cav', 'spear', 'archer'] : ['spear', 'spear', 'archer'];
+      const compB = itemId === 'net' ? ['cav', 'cav', 'spear'] : ['spear', 'cav', 'archer'];
+      compA.forEach((c, i) => { const id = 'da' + i; ros[id] = { name: ['เรา 1', 'เรา 2', 'เรา 3'][i], cls: c }; cellsA[i] = id; });
+      compB.forEach((c, i) => { const id = 'db' + i; ros[id] = { name: ['ศัตรู 1', 'ศัตรู 2', 'ศัตรู 3'][i], cls: c }; cellsB[i] = id; });
+      let units = Sim.createUnits({ A: { team: teamA, cells: cellsA }, B: { team: teamB, cells: cellsB } }, ros, S);
+      if (itemId === 'water') { units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * 0.3); }); units[0].alive = false; units[0].hp = 0; units[0].deployed = true; units.forEach((u) => { u.deployed = true; }); }
+      else if (itemId === 'chain') units.forEach((u) => { u.deployed = true; });
+      const inputs = { A: { team: teamA, plan: 'front', item: { id: itemId, tier: 0 }, morale: 0, cells: cellsA }, B: { team: teamB, plan: 'front', item: null, morale: 0, cells: cellsB } };
+      const w = Sim.simulateWave(units, itemId === 'water' ? 1 : 0, inputs, ros, S, 'demo' + itemId + d.n++, 8);
+      r.playWave(w, Date.now() + 300, 1);
+      d.timer = setTimeout(loop, 9500);
+    };
+    loop();
+  }
+  function stopDemos() { for (const k of Object.keys(demos)) { demos[k].renderer.stop(); clearTimeout(demos[k].timer); delete demos[k]; } }
+  function syncDemos() {
+    const cs = app.querySelectorAll('canvas[data-demo]');
+    if (!cs.length) { if (Object.keys(demos).length) stopDemos(); return; }
+    cs.forEach((c) => startDemo(c.dataset.demo, c));
   }
   let pRenderer = null;
   function practiceStart() {
@@ -585,6 +618,7 @@
     else app.innerHTML = html;
     const c = $('#arena', app);
     if (c) attachArena(c); else { lastArenaKey = null; lastWaveKey = null; if (renderer) { renderer.stop(); renderer = null; } }
+    syncDemos();
     const q = $('#qr', app); if (q && !q.children.length && window.QRCode) new QRCode(q, { text: location.origin + location.pathname, width: 120, height: 120 });
   }
   function attachArena(c) {
