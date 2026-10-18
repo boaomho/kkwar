@@ -142,7 +142,8 @@ input, select { font: inherit; background: var(--bg2); color: var(--fg); border:
 .hpsum .l { text-align: right; } .hpsum .r { text-align: left; }
 .vs { font-weight: 800; color: var(--muted); }
 .roster-list { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.roster-list .u { display: grid; grid-template-columns: 22px 1fr 60px; gap: 6px; align-items: center; }
+.roster-list .u { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.roster-list .u .b { min-width: 60px; }
 .roster-list .u .b { height: 6px; background: #000; border-radius: 3px; overflow: hidden; }
 .roster-list .u .b i { display: block; height: 100%; background: var(--good); }
 .roster-list .u.dead { opacity: .4; text-decoration: line-through; }

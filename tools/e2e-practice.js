@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const ctx = await browser.newContext();
+  const errors = [];
+  const p = await ctx.newPage(); await p.setViewportSize({ width: 390, height: 844 });
+  p.on('pageerror', (e) => errors.push(e.message));
+  await p.goto('http://127.0.0.1:8123/index.html?mock#admin');
+  await p.evaluate(() => localStorage.removeItem('kkwar-mock-db')); await p.reload();
+  await p.waitForSelector('#pin'); await p.fill('#pin', '1234'); await p.click('[data-act="pin"]');
+  await p.waitForSelector('[data-act="fill-demo"]'); await p.click('[data-act="fill-demo"]'); await p.waitForTimeout(300);
+  await p.goto('http://127.0.0.1:8123/index.html?mock'); await p.waitForSelector('[data-act="join-team"]');
+  await p.click('[data-act="join-team"][data-team="yellow"]'); await p.click('[data-act="join-name"] >> nth=1'); await p.waitForTimeout(400);
+  await p.selectOption('#pr-enemy', 'cav8'); await p.click('[data-act="practice-start"]'); await p.waitForTimeout(6000);
+  await p.screenshot({ path: 'tools/shots/practice-run.png', fullPage: true });
+  await p.waitForTimeout(40000);
+  await p.screenshot({ path: 'tools/shots/practice-done.png', fullPage: true });
+  console.log('errors:', errors.join('\n') || 'none');
+  await browser.close();
+})().catch((e) => { console.error('FAIL', e); process.exit(1); });

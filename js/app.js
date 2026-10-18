@@ -319,8 +319,59 @@
     h += `<div class="panel"><h2>แผนเข้าตีระลอกแรก ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
     h += `<div class="panel"><h2>ไอเทมของทีม</h2><div class="hint">ได้จากอันดับกิจกรรม outing ใช้ได้ในช่วงพักปรับทัพ</div>${itemsHtml(team, false)}</div>`;
     h += `<div class="panel"><h2>สมาชิก</h2><div class="roster-list">` + roster(team).map((n) => { const q = playerByName(team, n); return `<div class="u"><span>${q && q.cls ? D.CLASSES[q.cls].emoji : (q ? '❔' : '⬜')}</span><span>${esc(n)} ${captain(team) === n ? '👑' : ''}</span><span class="small muted">${q ? (q.cell != null ? 'ลงสนาม' : 'ยังไม่วาง') : 'ยังไม่เข้า'}</span></div>`; }).join('') + `</div></div>`;
+    h += practiceHtml(team);
     if (st.bracket) h += viewBracket();
     return h;
+  }
+  const PRESETS = {
+    balanced: { name: 'สมดุล 3-3-2', comp: ['spear', 'spear', 'spear', 'cav', 'cav', 'cav', 'archer', 'archer'] },
+    cav8: { name: 'ม้า 8 บุกตะลุย', comp: ['cav', 'cav', 'cav', 'cav', 'cav', 'cav', 'cav', 'cav'] },
+    spear8: { name: 'หอก 8 กำแพงเหล็ก', comp: ['spear', 'spear', 'spear', 'spear', 'spear', 'spear', 'spear', 'spear'] },
+    archer8: { name: 'ธนู 8 ฝนลูกศร', comp: ['archer', 'archer', 'archer', 'archer', 'archer', 'archer', 'archer', 'archer'] },
+    medic: { name: 'หอกหน้า ธนูหลัง หมอ 2', comp: ['spear', 'spear', 'spear', 'archer', 'archer', 'medic', 'archer', 'medic'] },
+  };
+  function practiceHtml(team) {
+    const pr = ui.practice || {};
+    let h = `<div class="panel"><h2>🧪 ซ้อมรบกับหุ่น</h2><div class="hint">ใช้ทัพที่วางอยู่ตอนนี้ สู้กับหุ่นจำลอง เล่นกี่รอบก็ได้ ไม่มีผลกับศึกจริง</div>
+      <div class="row"><select id="pr-enemy" class="grow">${Object.keys(PRESETS).map((k) => `<option value="${k}" ${pr.enemy === k ? 'selected' : ''}>หุ่น: ${PRESETS[k].name}</option>`).join('')}</select>
+      <select id="pr-plan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.plan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select></div>
+      <div class="row"><button class="primary" data-act="practice-start">▶ เริ่มซ้อม (เร็ว 1.5 เท่า)</button>${pr.run ? '<button class="ghost" data-act="practice-stop">หยุด</button>' : ''}</div>`;
+    if (pr.run) {
+      const r = pr.run;
+      h += `<div class="stage wave"><div class="nm">${r.done ? 'จบการซ้อม' : 'ระลอก ' + (r.waveIdx + 1)}</div><div class="tm">${r.done ? (r.result.winner === 'A' ? '🏆 ชนะ' : '💀 แพ้') : ''}</div></div>
+        <div class="arena"><canvas id="practice-arena"></canvas></div><div class="commentary" id="practice-commentary"></div>`;
+      if (r.done) h += `<div class="small">${r.result.winner === 'A' ? 'ทัพนี้ชนะหุ่น' : 'ทัพนี้แพ้หุ่น'} · เลือดเหลือ ${Math.round(r.result.s.A.pct * 100)}% vs ${Math.round(r.result.s.B.pct * 100)}% · ${r.result.reason === 'wipe' ? 'ล้างบาง' : 'วัดเลือดรวม'}</div>` + statsHtml({ waves: r.waves, units: r.units });
+    }
+    return h + `</div>`;
+  }
+  let pRenderer = null;
+  function practiceStart() {
+    const p = myPlayer(); if (!p) return;
+    const enemy = $('#pr-enemy', app).value, plan = $('#pr-plan', app).value;
+    const S = settings(); const team = p.team;
+    const A = snapshotSide(team); if (Object.keys(A.cells).length < 1) return toast('วางทัพก่อนอย่างน้อย 1 คน');
+    const eteam = D.TEAM_ORDER.find((t) => t !== team);
+    const cells = {}, ros = {}; PRESETS[enemy].comp.forEach((cls, i) => { const id = 'bot' + i; cells[i] = id; ros[id] = { name: 'หุ่น ' + (i + 1), cls }; });
+    const roster = { ...A.roster, ...ros };
+    const seed = 'practice-' + Date.now();
+    const r = Sim.simulateMatch({ A: { team, cells: A.cells, plans: [plan, plan, plan], items: [null, null, null], morale: 0.5 }, B: { team: eteam, cells, plans: ['front', 'front', 'front'], items: [null, null, null], morale: 0.5 } }, roster, S, seed);
+    ui.practice = { enemy, plan, run: { waves: r.waves, units: r.units, result: r.result, waveIdx: 0, startedAt: Date.now(), done: false, teams: { A: team, B: eteam } } };
+    render(); practiceTick();
+  }
+  function practiceTick() {
+    const pr = ui.practice && ui.practice.run; if (!pr || pr.done) return;
+    const c = $('#practice-arena', app); if (!c) return;
+    if (!pRenderer || pRenderer.canvas !== c) { if (pRenderer) pRenderer.stop(); pRenderer = new BattleRenderer(c, { teams: pr.teams, commentaryEl: $('#practice-commentary', app), now: () => Date.now() }); pr.playing = -1; }
+    const SPEED = 1.5;
+    const w = pr.waves[pr.waveIdx];
+    if (pr.playing !== pr.waveIdx) { pr.playing = pr.waveIdx; pr.waveStart = Date.now(); pRenderer.playWave(w, pr.waveStart, SPEED); }
+    const el = (Date.now() - pr.waveStart) / 1000 * SPEED;
+    const len = Math.min(w.duration, w.endTick * Sim.TICK + 1.5);
+    if (el >= len) {
+      if (pr.waveIdx < pr.waves.length - 1) { pr.waveIdx++; render(); }
+      else { pr.done = true; pRenderer.setStatic(pr.units); render(); return; }
+    }
+    setTimeout(practiceTick, 300);
   }
   function viewBattlePlayer(p) {
     const m = st.match; const team = p.team; const side = sideOf(team); const enemy = side === 'A' ? m.b : m.a;
@@ -484,7 +535,7 @@
     const tmp = document.createElement('div'); tmp.className = 'app'; tmp.innerHTML = html;
     const keepCanvas = $('#arena', app);
     const newCanvas = $('#arena', tmp);
-    if (window.morphdom) morphdom(app, tmp, { childrenOnly: true, onBeforeElUpdated: (a, b) => { if (a.tagName === 'CANVAS') return false; if (a.id === 'commentary' && a.children.length) return false; if (a.id === 'qr' && a.children.length) return false; if (document.activeElement === a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return false; return true; } });
+    if (window.morphdom) morphdom(app, tmp, { childrenOnly: true, onBeforeElUpdated: (a, b) => { if (a.tagName === 'CANVAS') return false; if ((a.id === 'commentary' || a.id === 'practice-commentary') && a.children.length) return false; if (a.id === 'pr-enemy' || a.id === 'pr-plan') return false; if (a.id === 'qr' && a.children.length) return false; if (document.activeElement === a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return false; return true; } });
     else app.innerHTML = html;
     const c = $('#arena', app);
     if (c) attachArena(c); else { lastArenaKey = null; lastWaveKey = null; if (renderer) { renderer.stop(); renderer = null; } }
@@ -533,6 +584,8 @@
       else if (act === 'plan') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.id === el.dataset.item ? null : { id: el.dataset.item } }); }
       else if (act === 'tap') { tap(); }
+      else if (act === 'practice-start') { practiceStart(); }
+      else if (act === 'practice-stop') { ui.practice = { enemy: ui.practice.enemy, plan: ui.practice.plan }; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
       else if (act === 'pin' || act === 'admin-login') {
         const v = act === 'pin' ? $('#pin', app).value : prompt_('PIN');
         if (v === settings().pin) { isAdmin = true; try { localStorage.setItem('kkwar-admin', '1'); } catch (e) {} toast('เข้าสู่โหมด host แล้ว'); render(); } else toast('PIN ไม่ถูกต้อง');
