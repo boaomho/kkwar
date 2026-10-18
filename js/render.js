@@ -143,7 +143,7 @@ window.BattleRenderer = (function () {
       ctx.fillStyle = teamColor(this.teams.B); ctx.textAlign = 'right'; ctx.fillText(D.TEAMS[this.teams.B].name, w - 10, 8);
     }
     _drawUnits(ctx) {
-      const w = this.w, h = this.h, R = Math.max(10, w * 0.026);
+      const w = this.w, h = this.h, R = Math.max(12, w * 0.034);
       const el = this.mode === 'play' ? this.elapsed() : 0;
       const order = [...this.units].sort((a, b) => (this.pos[a.id] ? this.pos[a.id].y : a.y) - (this.pos[b.id] ? this.pos[b.id].y : b.y));
       for (const u of order) {
@@ -200,7 +200,7 @@ window.BattleRenderer = (function () {
     }
     _drawEffects(ctx) {
       const w = this.w, h = this.h, el = this.mode === 'play' ? this.elapsed() : 0;
-      const R = Math.max(10, w * 0.026);
+      const R = Math.max(12, w * 0.034);
       this.effects = this.effects.filter((e) => el <= e.t0 + e.dur + 0.1);
       for (const e of this.effects) {
         if (el < e.t0) continue;

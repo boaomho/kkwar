@@ -96,7 +96,8 @@ window.Store = (function () {
 
   function init() {
     const cfg = window.FIREBASE_CONFIG;
-    if (cfg && cfg.apiKey && window.firebase) return createFirebase(cfg);
+    const forceMock = /[?&]mock/.test(location.search);
+    if (!forceMock && cfg && cfg.apiKey && window.firebase) return createFirebase(cfg);
     return createMock();
   }
   return { init };

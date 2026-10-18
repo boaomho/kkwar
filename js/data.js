@@ -66,7 +66,7 @@ window.GameData = (function () {
     // เวลา (วินาที)
     tPlan: 45, tWave1: 15, tPause: 15, tWave2: 15, tWave3: 30,
     // สมดุลอาชีพ
-    hp:  { cav: 100, spear: 140, archer: 85, medic: 95 },
+    hp:  { cav: 125, spear: 175, archer: 105, medic: 120 },
     atk: { cav: 14, spear: 12, archer: 10, medic: 0 },
     speed: { cav: 2.4, spear: 1.2, archer: 1.4, medic: 1.3 },
     healAmt: 22, healEvery: 1.5, medicMax: 2,

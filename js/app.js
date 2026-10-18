@@ -232,7 +232,7 @@
     const rows = ['หน้า', 'กลาง', 'หลัง'];
     let h = `<div class="board-head"><div></div><div>เลนบน</div><div>เลนกลาง</div><div>เลนล่าง</div></div><div class="board">`;
     for (let r = 0; r < 3; r++) {
-      h += `<div class="rowlab">แถว${rows[r]} · ออกระลอก ${r + 1}</div>`;
+      h += `<div class="rowlab"><b>${rows[r]}</b><span>ระลอก ${r + 1}</span></div>`;
       for (let l = 0; l < 3; l++) {
         const c = r * 3 + l; const p = byCell[c];
         if (!p) { h += `<div class="cell ${ui.sel && opts.interactive ? 'target' : ''}" data-act="cell" data-team="${team}" data-cell="${c}"></div>`; continue; }
