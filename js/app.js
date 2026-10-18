@@ -113,7 +113,12 @@
     const p = st.players[pid]; const mine = myPlayer(); if (!p || !mine || p.team !== mine.team) return false;
     if (st.match && sideOf(p.team) && /^wave/.test(st.match.stage)) return false;
     if (st.match && sideOf(p.team) && st.match.stage !== 'plan' && st.match.stage !== 'result') { const u = computeMatch().units.find((x) => x.id === pid); if (u && !u.alive) return false; }
-    return pid === me.pid || isCaptain() || isAdmin;
+    const mode = (st.game && st.game.moveMode) || 'mixed';
+    const inPause = st.match && sideOf(p.team) && /^pause/.test(st.match.stage);
+    if (isCaptain() || isAdmin) return true;
+    if (mode === 'captain') return false;
+    if (mode === 'mixed' && inPause) return false;
+    return pid === me.pid;
   }
   let tapTimer = null;
   function tap() {
@@ -195,9 +200,15 @@
     return el >= Math.min(r.endTick * Sim.TICK + 2.5, r.duration + 0.5);
   }
   let advancing = false;
+  async function togglePause() {
+    const m = st.match; if (!m) return;
+    if (m.pausedAt) { const d = now() - m.pausedAt; await R('match').update({ pausedAt: null, stageEnds: m.stageEnds + d, stageStart: m.stageStart + d }); }
+    else { if (/^wave/.test(m.stage)) return toast('หยุดได้เฉพาะช่วงวางแผน/พักยก/ผล'); await R('match').update({ pausedAt: now() }); }
+  }
   async function hostTick() {
     if (!isAdmin || !st.match) return;
     const m = st.match;
+    if (m.pausedAt) return;
     if (m.stage === 'result') { if (!matchDecided(m) && now() >= m.stageEnds + 400 && !advancing) { advancing = true; try { await nextRound(); } catch (e) { console.error(e); } setTimeout(() => { advancing = false; }, 1500); } return; }
     const due = /^wave/.test(m.stage) ? waveFinished() : now() >= m.stageEnds + 400;
     if (due && !advancing) { advancing = true; try { await advanceStage(); } catch (e) { console.error(e); } setTimeout(() => { advancing = false; }, 1500); }
@@ -240,7 +251,8 @@
   function stageBar(big) {
     const m = st.match; if (!m) return '';
     const cls = /^wave/.test(m.stage) ? 'wave' : m.stage === 'result' ? '' : 'pause';
-    const t = m.stage === 'result' ? (matchDecided(m) ? '' : 'รอบถัดไปใน ' + fmtTime(m.stageEnds - now())) : fmtTime(m.stageEnds - now());
+    const left = m.pausedAt ? m.stageEnds - m.pausedAt : m.stageEnds - now();
+    const t = m.pausedAt ? '⏸ ' + fmtTime(left) : m.stage === 'result' ? (matchDecided(m) ? '' : 'รอบถัดไปใน ' + fmtTime(left)) : fmtTime(left);
     return `<div class="stage ${cls} ${big ? 'big-stage' : ''}"><div class="nm">${STAGE_NAME[m.stage]}</div><div class="tm">${t}</div></div>`;
   }
   function boardHtml(team, opts) {
@@ -405,6 +417,7 @@
     const S = settings(); const w = m.stage === 'plan' ? 0 : m.stage === 'pause1' ? 1 : 2;
     const cm = computeMatch();
     if (m.stage !== 'plan') h += hpSummaryHtml();
+    if (m.pausedAt) h += `<div class="panel center"><b>⏸ ผู้ดำเนินรายการหยุดเวลาไว้</b><div class="hint">จัดทัพต่อได้ เวลาจะเดินเมื่อกดเล่นต่อ</div></div>`;
     h += `<div class="panel"><div class="row"><h2 class="grow">${m.stage === 'plan' ? 'วางทัพ 8 คน' : 'พักยก — จัดทัพใหม่ก่อนยก ' + (w + 1)}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8</span></div>
       <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'พักยก: ทุกคนที่ยังรอดกลับเข้าตำแหน่ง ย้ายใหม่ได้ทั้งทัพ (เลือดไม่ฟื้น)')}</div>${boardHtml(team, { interactive: true })}${m.stage === 'plan' ? `<button class="ghost" data-act="change-class">🔁 เปลี่ยนอาชีพของฉัน (${D.CLASSES[p.cls].emoji} ${D.CLASSES[p.cls].name})</button>` : ''}</div>`;
     if (m.stage !== 'plan') {
@@ -492,7 +505,7 @@
       if (m.stage !== 'plan') h += hpSummaryHtml();
     }
     if (m.stage === 'result') h += viewResult();
-    if (isAdmin && m.stage !== 'result') h += `<div class="row"><button class="ghost" data-act="advance">ข้ามไปช่วงถัดไป ⏭</button></div>`;
+    if (isAdmin && m.stage !== 'result') h += `<div class="row"><button class="ghost" data-act="advance">ข้ามไปช่วงถัดไป ⏭</button><button class="ghost" data-act="pause">${m.pausedAt ? '▶ เล่นต่อ' : '⏸ หยุดเวลา'}</button><button class="ghost" data-act="extend">+15 วิ</button></div>`;
     h += `</div><div class="side-panel">${sidePanel('B')}</div></div>`;
     if (st.bracket) h += viewBracket();
     return h + `</div>`;
@@ -526,9 +539,12 @@
         <button data-act="advance" ${m && m.stage !== 'result' ? '' : 'disabled'}>⏭ ข้ามช่วง</button>
         <button data-act="next-round" ${m && m.stage === 'result' && !matchDecided(m) ? '' : 'disabled'}>▶ รอบถัดไป</button>
         <button class="ghost" data-act="extend" ${m && m.stage !== 'result' ? '' : 'disabled'}>+15 วิ</button>
+        <button class="${m && m.pausedAt ? 'gold' : ''}" data-act="pause" ${m ? '' : 'disabled'}>${m && m.pausedAt ? '▶ เล่นต่อ' : '⏸ หยุดเวลา'}</button>
         <button class="danger" data-act="restart-match" ${m ? '' : 'disabled'}>↺ เริ่มศึกนี้ใหม่</button>
         <button class="ghost" data-act="simulate-pair" ${m ? '' : 'disabled'}>🎲 จำลองทัพปัจจุบันของคู่นี้ 100 ครั้ง</button>
       </div>${ui.simResult ? `<div class="small">${ui.simResult}</div>` : ''}${st.bracket ? viewBracket() : ''}</div>`;
+      const mm = (st.game && st.game.moveMode) || 'mixed';
+      h += `<div class="panel"><h2>ใครย้ายตัวละครได้</h2><div class="row">${[['mixed', 'ผสม: วางแผนทุกคนย้ายตัวเอง / พักยกกัปตันคนเดียว'], ['all', 'ทุกคนย้ายตัวเองได้ทุกช่วง'], ['captain', 'กัปตันคนเดียวทุกช่วง']].map(([k, t]) => `<button class="${mm === k ? 'gold' : 'ghost'}" data-act="move-mode" data-mode="${k}">${t}</button>`).join('')}</div><div class="hint">กัปตันย้ายได้ทุกคนเสมอ และเป็นคนเดียวที่เลือกแผน/ไอเทม</div></div>`;
       h += `<div class="panel"><h2>สถานะทีม</h2>` + D.TEAM_ORDER.map((t) => `<div class="small"><b style="color:${D.TEAMS[t].color}">${D.TEAMS[t].name}</b> เข้า ${teamPlayers(t).length} · มีอาชีพ ${teamPlayers(t).filter((x) => x.cls).length} · ลงสนาม ${teamPlayers(t).filter((x) => x.cell != null).length}/8 · กัปตัน ${esc(captain(t))}</div>`).join('') + `</div>`;
       h += `<div class="panel"><h2>⚠️ อันตราย</h2><div class="row"><button class="danger" data-act="reset-match">ล้างศึกปัจจุบัน+สาย (กลับไปล็อบบี้)</button><button class="danger" data-act="reset-all">ล้างทุกอย่าง (ผู้เล่น/อันดับ/ตั้งค่า)</button></div><div class="row"><button class="ghost" data-act="fill-demo">🧪 เติมผู้เล่นจำลองให้ครบทุกทีม (ทดสอบ)</button></div></div>`;
     } else if (ui.adminTab === 'rank') {
@@ -600,7 +616,7 @@
           if (pid && !canMove(pid)) { toast('ย้ายคนนี้ไม่ได้'); return; }
           await moveHero(ui.sel, cell); ui.sel = null; return;
         }
-        if (pid) { if (!canMove(pid)) { toast(pid === me.pid ? 'ตอนนี้ย้ายไม่ได้ (ล้มแล้วหรืออยู่ระหว่างรบ)' : 'ย้ายได้เฉพาะตัวเอง (กัปตันย้ายได้ทุกคน)'); return; } ui.sel = pid; render(); }
+        if (pid) { if (!canMove(pid)) { toast(pid === me.pid ? 'ตอนนี้ย้ายไม่ได้ (ช่วงพักยกกัปตันเป็นคนจัด / ล้มแล้ว / กำลังรบ)' : 'ย้ายได้เฉพาะตัวเอง (กัปตันย้ายได้ทุกคน)'); return; } ui.sel = pid; render(); }
       }
       else if (act === 'plan') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.id === el.dataset.item ? null : { id: el.dataset.item } }); }
@@ -625,6 +641,8 @@
       }
       else if (act === 'advance') { await advanceStage(); }
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
+      else if (act === 'pause') { await togglePause(); }
+      else if (act === 'move-mode') { await R('game').update({ moveMode: el.dataset.mode }); toast('ตั้งค่าแล้ว'); }
       else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) upd[t + '/itemsUsed'] = null; await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
       else if (act === 'reset-match') { if (!confirmUi(el, 'ล้างศึกและสาย? กดอีกครั้ง')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
       else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่างจริงๆ? กดอีกครั้ง')) return; await R('').set({ game: { phase: 'lobby' } }); toast('ล้างแล้ว'); }
