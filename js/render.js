@@ -207,9 +207,31 @@ window.BattleRenderer = (function () {
           if (e.id !== u.id || el < e.t0 || el > e.t0 + e.dur) continue;
           ctx.font = `${R}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           if (e.k === 'sparkle') ctx.fillText('✨', x + R * 1.1, y - R * 2.2);
-          if (e.k === 'shield') { ctx.globalAlpha = 0.85; ctx.fillText('🛡️', x - R * 1.3, y - R * 1.2); ctx.globalAlpha = 1; }
-          if (e.k === 'fire') { const f = 0.8 + 0.2 * Math.sin(el * 12); ctx.font = `${R * f}px sans-serif`; ctx.fillText('🔥', x + R * 1.2, y - R * 1.0); }
-          if (e.k === 'stun') { ctx.font = `${R * 1.1}px sans-serif`; ctx.fillText('🕸️', x, y - H + R * 0.2); }
+          if (e.k === 'shield') {
+            const pulse = 1 + 0.06 * Math.sin(el * 5);
+            ctx.save(); ctx.translate(x, y - R * 1.1); ctx.scale(pulse, pulse);
+            const g = ctx.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 2.3); g.addColorStop(0, 'rgba(90,170,255,0.05)'); g.addColorStop(0.8, 'rgba(90,170,255,0.22)'); g.addColorStop(1, 'rgba(140,210,255,0.55)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, R * 2.3, R * 2.6, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(160,220,255,0.95)'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.font = `${R * 1.2}px sans-serif`; ctx.fillText('🛡️', 0, -R * 2.9); ctx.restore();
+          }
+          if (e.k === 'fire') {
+            const f = 0.85 + 0.15 * Math.sin(el * 14 + x);
+            const g = ctx.createRadialGradient(x, y + R * 0.6, R * 0.3, x, y + R * 0.6, R * 2.4); g.addColorStop(0, 'rgba(255,140,0,0.55)'); g.addColorStop(1, 'rgba(255,60,0,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y + R * 0.6, R * 2.4, R * 1.2, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.font = `${R * 1.3 * f}px sans-serif`; ctx.fillText('🔥', x - R * 1.4, y - R * 0.6); ctx.fillText('🔥', x + R * 1.4, y - R * 0.4);
+            ctx.font = `${R * 0.9}px sans-serif`; ctx.fillText('🔥', x, y - H - R * 0.1);
+          }
+          if (e.k === 'stun') {
+            const cy = y - R * 1.3, rr = R * 2.1;
+            ctx.save(); ctx.globalAlpha = 0.95; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x + Math.cos(a) * rr, cy + Math.sin(a) * rr); ctx.stroke(); }
+            for (const k of [0.4, 0.7, 1]) { ctx.beginPath(); for (let i = 0; i <= 8; i++) { const a = i * Math.PI / 4; const px = x + Math.cos(a) * rr * k, py = cy + Math.sin(a) * rr * k; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.stroke(); }
+            ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.arc(x, cy, rr, 0, Math.PI * 2); ctx.fill();
+            ctx.font = `${R * 1.3}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('🕸️', x, cy - rr - R * 0.6);
+            const left = Math.max(0, e.t0 + e.dur - el); ctx.font = `800 ${R * 0.8}px Kanit, sans-serif`; ctx.fillStyle = '#ffd23f'; ctx.fillText('ติดตาข่าย ' + left.toFixed(1), x, cy + rr + R * 0.5);
+            ctx.restore();
+          }
           if (e.k === 'ring') { const k = (el - e.t0) / e.dur; ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y + R * 0.9, R * (1 + k * 2), R * 0.4 * (1 + k * 2), 0, 0, Math.PI * 2); ctx.stroke(); }
         }
         // HP

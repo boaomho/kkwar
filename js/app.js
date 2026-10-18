@@ -388,6 +388,8 @@
     const r = new BattleRenderer(canvas, { teams: { A: teamA, B: teamB }, commentaryEl: null, now: () => Date.now() });
     const d = { renderer: r, timer: null, n: 0 };
     demos[itemId] = d;
+    const tag = canvas.parentElement && canvas.parentElement.querySelector('.demo-tag');
+    const setTag = (t) => { if (tag) tag.textContent = t; };
     const loop = () => {
       if (demos[itemId] !== d) return;
       const ros = {}, cellsA = {}, cellsB = {};
@@ -396,10 +398,29 @@
       compA.forEach((c, i) => { const id = 'da' + i; ros[id] = { name: 'เรา ' + (i + 1), cls: c }; cellsA[i] = id; });
       compB.forEach((c, i) => { const id = 'db' + i; ros[id] = { name: 'ศัตรู ' + (i + 1), cls: c }; cellsB[i] = id; });
       let units = Sim.createUnits({ A: { team: teamA, cells: cellsA }, B: { team: teamB, cells: cellsB } }, ros, S);
-      if (itemId === 'water') { units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * 0.3); }); units[1].alive = false; units[1].hp = 0; units[1].deployed = true; units.forEach((u) => { u.deployed = true; }); }
-      else if (itemId === 'chain') units.forEach((u) => { u.deployed = true; });
-      const inputs = { A: { team: teamA, plan: 'front', item: { id: itemId, tier: 0 }, morale: 0, cells: cellsA }, B: { team: teamB, plan: 'front', item: null, morale: 0, cells: cellsB } };
-      const w = Sim.simulateWave(units, itemId === 'water' ? 1 : 0, inputs, ros, S, 'demo' + itemId + d.n++, 10);
+      const seed = 'demo' + itemId + d.n++;
+      const inpNo = { A: { team: teamA, plan: 'front', item: null, morale: 0, cells: cellsA }, B: { team: teamB, plan: 'front', item: null, morale: 0, cells: cellsB } };
+      const inpYes = { A: { ...inpNo.A, item: { id: itemId, tier: 0 } }, B: inpNo.B };
+      if (itemId === 'water') {
+        // ยก 1: ฝ่ายเราเสียเปรียบ มีคนล้ม → พักยก → ยก 2 ใช้น้ำทิพย์ ฟื้น+ชุบ
+        units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * 0.45); });
+        const w1 = Sim.simulateWave(units, 0, inpNo, ros, S, seed, 5);
+        setTag('ยก 1: ฝ่ายเราโดนถล่ม…'); r.playWave(w1, Date.now() + 300, 1);
+        d.timer = setTimeout(() => {
+          if (demos[itemId] !== d) return;
+          setTag('⏸ พักยก → กัปตันกดใช้ 💧 น้ำทิพย์ (เทพ)'); r.setStatic(w1.units);
+          d.timer = setTimeout(() => {
+            if (demos[itemId] !== d) return;
+            const w2 = Sim.simulateWave(w1.units, 1, inpYes, ros, S, seed, 7);
+            setTag('ยก 2: ฟื้นเลือด 35% ทั้งทีม + ชุบชีวิตคนที่ล้ม!'); r.playWave(w2, Date.now() + 300, 1);
+            d.timer = setTimeout(loop, 8000);
+          }, 2500);
+        }, 5800);
+        return;
+      }
+      units.forEach((u) => { u.deployed = true; });
+      const w = Sim.simulateWave(units, 0, inpYes, ros, S, seed, 10);
+      setTag({ net: 'เริ่มยก → 2 วิ โยน 🕸️ ตรึง 4 ตัวที่บุกมา 4 วิ โดนตีแรงขึ้น 30%', wheel: '🔥 ล้อไฟ: ทั้งทีมตีแรงขึ้น 35% ทั้งยก', chain: '🛡️ โซ่สามัคคี: ทั้งทีมรับดาเมจลด 40% ทั้งยก' }[itemId] || '');
       r.playWave(w, Date.now() + 300, 1);
       d.timer = setTimeout(loop, 11500);
     };
