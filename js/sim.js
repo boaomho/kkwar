@@ -131,11 +131,7 @@ window.Sim = (function () {
             events.push({ t: 0, type: 'revive', id: u.id, name: u.name, side }); }
         }
       }
-      if (mod.item === 'net') {
-        const targets = units.filter((u) => u.side === enemy && u.alive && u.deployed)
-          .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, (D.ITEMS.net.counts || [3, 3, 3, 3])[mod.itemTier]);
-        for (const u of targets) { u.stunUntil = mod.itemVal; events.push({ t: 0, type: 'stun', to: u.id, dur: mod.itemVal }); }
-      }
+      if (mod.item === 'net') mod.netPending = true; // โยนตาข่ายตอนศัตรูวิ่งเข้ามา (หลัง netDelay วินาที)
     }
 
     const ticks = Math.round(duration / TICK);
@@ -171,6 +167,14 @@ window.Sim = (function () {
       for (const u of units) if (u.alive && u.deployed) alive[u.side]++;
       if (alive.A === 0 || alive.B === 0) { endTick = tick; break; }
 
+      // ตาข่าย: โยนเมื่อถึงเวลา ตรึงศัตรูที่เข้ามาใกล้ฝั่งเราที่สุด
+      for (const side of ['A', 'B']) {
+        const mod = sideMod[side]; if (!mod.netPending || t < (S.netDelay == null ? 2 : S.netDelay)) continue;
+        mod.netPending = false; const enemy = side === 'A' ? 'B' : 'A';
+        const targets = units.filter((u) => u.side === enemy && u.alive && u.deployed)
+          .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, (D.ITEMS.net.counts || [3, 3, 3, 3])[mod.itemTier]);
+        for (const u of targets) { u.stunUntil = t + mod.itemVal; events.push({ t, type: 'stun', to: u.id, dur: mod.itemVal }); }
+      }
       // เฟส 1: ทุกตัวตัดสินใจจากตำแหน่ง ณ ต้น tick (ไม่มีใครได้เปรียบจากลำดับ)
       const snap = {}; for (const u of units) snap[u.id] = { id: u.id, x: u.x, y: u.y, hp: u.hp, alive: u.alive, deployed: u.deployed, cls: u.cls, side: u.side, maxHp: u.maxHp, engaged: u.engaged };
       const moves = [], attacks = [], heals = [];
@@ -234,6 +238,7 @@ window.Sim = (function () {
         const tmod = sideMod[target.side];
         dmg *= tmod.chain;
         if (tmod.plan === 'back' && !snap[target.id].engaged && target.cls !== 'archer') dmg *= S.planBackExposed;
+        if (target.stunUntil > t) dmg *= (S.stunVuln || 1.3);
         dmg = Math.max(1, Math.round(dmg));
         if (!target.alive) continue; // ล้มไปแล้วใน tick เดียวกัน
         target.hp -= dmg;

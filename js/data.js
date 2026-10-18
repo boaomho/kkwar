@@ -47,7 +47,7 @@ window.GameData = (function () {
   const TIER_NAMES = ['เทพ', 'แกร่ง', 'ธรรมดา', 'ขำๆ'];
   const ITEMS = {
     net:   { id: 'net',   name: 'ตาข่ายเทพ', emoji: '🕸️',
-             desc: 'ตรึงศัตรูที่อยู่หน้าสุดให้ขยับ/ตีไม่ได้ตอนเริ่มยก',
+             desc: 'หลังเริ่มยก 2 วิ โยนตาข่ายใส่ศัตรูที่บุกเข้ามาใกล้สุด ขยับ/ตีไม่ได้ และโดนตีแรงขึ้น 30% ระหว่างติดตาข่าย',
              tiers: [4, 3.5, 2.5, 2], unit: 'วินาที', counts: [4, 3, 3, 2] },
     wheel: { id: 'wheel', name: 'ล้อไฟ', emoji: '🔥',
              desc: 'ทั้งทีมพลังโจมตีเพิ่มขึ้นตลอดยก',
@@ -74,7 +74,7 @@ window.GameData = (function () {
     waveMult: [1.0, 1.15, 1.4],
     varMin: 0.85, varMax: 1.15, critChance: 0.10, critMult: 2.0,
     moraleMax: 0.15, moraleHeal: 0.25, tapsPerPersonFull: 40,
-    planFrontBonus: 1.10, planBackExposed: 1.15, cavCharge: 1.4,
+    planFrontBonus: 1.10, planBackExposed: 1.15, cavCharge: 1.4, netDelay: 2, stunVuln: 1.3,
     attackEvery: 1.0, archerRange: 0.38, meleeRange: 0.055, healRange: 0.2,
   };
 

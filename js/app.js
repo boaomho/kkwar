@@ -391,17 +391,17 @@
     const loop = () => {
       if (demos[itemId] !== d) return;
       const ros = {}, cellsA = {}, cellsB = {};
-      const compA = itemId === 'wheel' ? ['cav', 'spear', 'archer'] : ['spear', 'spear', 'archer'];
-      const compB = itemId === 'net' ? ['cav', 'cav', 'spear'] : ['spear', 'cav', 'archer'];
-      compA.forEach((c, i) => { const id = 'da' + i; ros[id] = { name: ['เรา 1', 'เรา 2', 'เรา 3'][i], cls: c }; cellsA[i] = id; });
-      compB.forEach((c, i) => { const id = 'db' + i; ros[id] = { name: ['ศัตรู 1', 'ศัตรู 2', 'ศัตรู 3'][i], cls: c }; cellsB[i] = id; });
+      const compA = itemId === 'wheel' ? ['cav', 'cav', 'spear', 'spear', 'archer', 'archer'] : ['spear', 'spear', 'spear', 'archer', 'archer', 'medic'];
+      const compB = itemId === 'net' ? ['cav', 'cav', 'cav', 'spear', 'spear', 'archer'] : ['spear', 'spear', 'cav', 'cav', 'archer', 'archer'];
+      compA.forEach((c, i) => { const id = 'da' + i; ros[id] = { name: 'เรา ' + (i + 1), cls: c }; cellsA[i] = id; });
+      compB.forEach((c, i) => { const id = 'db' + i; ros[id] = { name: 'ศัตรู ' + (i + 1), cls: c }; cellsB[i] = id; });
       let units = Sim.createUnits({ A: { team: teamA, cells: cellsA }, B: { team: teamB, cells: cellsB } }, ros, S);
-      if (itemId === 'water') { units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * 0.3); }); units[0].alive = false; units[0].hp = 0; units[0].deployed = true; units.forEach((u) => { u.deployed = true; }); }
+      if (itemId === 'water') { units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * 0.3); }); units[1].alive = false; units[1].hp = 0; units[1].deployed = true; units.forEach((u) => { u.deployed = true; }); }
       else if (itemId === 'chain') units.forEach((u) => { u.deployed = true; });
       const inputs = { A: { team: teamA, plan: 'front', item: { id: itemId, tier: 0 }, morale: 0, cells: cellsA }, B: { team: teamB, plan: 'front', item: null, morale: 0, cells: cellsB } };
-      const w = Sim.simulateWave(units, itemId === 'water' ? 1 : 0, inputs, ros, S, 'demo' + itemId + d.n++, 8);
+      const w = Sim.simulateWave(units, itemId === 'water' ? 1 : 0, inputs, ros, S, 'demo' + itemId + d.n++, 10);
       r.playWave(w, Date.now() + 300, 1);
-      d.timer = setTimeout(loop, 9500);
+      d.timer = setTimeout(loop, 11500);
     };
     loop();
   }
