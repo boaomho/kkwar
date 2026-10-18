@@ -639,7 +639,7 @@
       }
       else if (act === 'admin-logout') { isAdmin = false; try { localStorage.removeItem('kkwar-admin'); } catch (e) {} render(); }
       else if (act === 'atab') { ui.adminTab = el.dataset.tab; render(); }
-      else if (act === 'draw') { if (st.bracket && !confirmUi(el, 'จับฉลากใหม่จะล้างผลศึกทั้งหมด กดอีกครั้งเพื่อยืนยัน')) return; await R('match').set(null); await drawBracket(); toast('จับฉลากแล้ว'); }
+      else if (act === 'draw') { if (st.bracket && !confirmUi(el, 'จับฉลากใหม่จะล้างผลศึกทั้งหมด ยืนยัน?')) return; await R('match').set(null); await drawBracket(); toast('จับฉลากแล้ว'); }
       else if (act === 'next-match') { if (st.match && st.match.stage === 'result' && !matchDecided(st.match)) return toast('คู่นี้ยังไม่จบ (ต้องชนะ ' + settings().roundsToWin + ' รอบ)'); await startNextMatch(); }
       else if (act === 'next-round') { await nextRound(); }
       else if (act === 'simulate-pair') {
@@ -653,9 +653,9 @@
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
       else if (act === 'pause') { await togglePause(); }
       else if (act === 'move-mode') { await R('game').update({ moveMode: el.dataset.mode }); toast('ตั้งค่าแล้ว'); }
-      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) { upd[t + '/itemsUsed'] = null; upd[t + '/bonusUsed'] = null; } await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
-      else if (act === 'reset-match') { if (!confirmUi(el, 'ล้างศึกและสาย? กดอีกครั้ง')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
-      else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่างจริงๆ? กดอีกครั้ง')) return; await R('').set({ game: { phase: 'lobby' } }); toast('ล้างแล้ว'); }
+      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด (สกอร์และไอเทมของคู่นี้รีเซ็ต)?')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) { upd[t + '/itemsUsed'] = null; upd[t + '/bonusUsed'] = null; } await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
+      else if (act === 'reset-match') { if (!confirmUi(el, 'ล้างศึกปัจจุบันและสายการแข่ง กลับไปล็อบบี้?')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
+      else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่าง (ผู้เล่น อันดับ สาย ตั้งค่า) จริงๆ?')) return; await R('').set({ game: { phase: 'lobby' } }); toast('ล้างแล้ว'); }
       else if (act === 'fill-demo') { await fillDemo(); }
       else if (act === 'save-rank') { const r = {}; for (const a of D.ACTIVITY_ORDER) { r[a] = [0, 1, 2, 3].map((i) => $(`select[data-rank="${a}"][data-pos="${i}"]`, app).value || null); const set = new Set(r[a].filter(Boolean)); if (set.size !== r[a].filter(Boolean).length) { toast('กิจกรรม ' + D.ACTIVITIES[a].name + ' มีทีมซ้ำ'); return; } } await R('game/rankings').set(r); toast('บันทึกอันดับแล้ว'); }
       else if (act === 'save-roster') { const ro = {}, cp = {}; for (const t of D.TEAM_ORDER) { ro[t] = $('#roster-' + t, app).value.split('\n').map((s) => s.trim()).filter(Boolean); cp[t] = $('#captain-' + t, app).value.trim() || ro[t][0]; } await R('game').update({ roster: ro, captains: cp }); toast('บันทึกรายชื่อแล้ว'); }
@@ -666,7 +666,7 @@
   app.addEventListener('pointerdown', (ev) => { const el = ev.target.closest('[data-act="tap"]'); if (el) { ev.preventDefault(); tap(); } });
   app.addEventListener('click', (ev) => { const el = ev.target.closest('[data-act="tap"]'); if (el) ev.preventDefault(); }, true);
   function prompt_(label) { const v = window.prompt(label); return v == null ? '' : v; }
-  function confirmUi(el, msg) { if (el.dataset.confirm === '1') { el.dataset.confirm = ''; return true; } el.dataset.confirm = '1'; toast(msg); setTimeout(() => { el.dataset.confirm = ''; }, 4000); return false; }
+  function confirmUi(el, msg) { return window.confirm(msg); }
   async function fillDemo() {
     const upd = {};
     for (const t of D.TEAM_ORDER) { roster(t).slice(0, 8).forEach((n, i) => { const pid = D.slug(t + ':' + n); const ex = st.players[pid]; const cls = (ex && ex.cls) || ['spear', 'spear', 'spear', 'cav', 'cav', 'archer', 'archer', 'medic'][i]; upd[pid] = { name: n, team: t, cls, cell: i, ts: now() }; }); }
