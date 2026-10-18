@@ -420,7 +420,10 @@
         let deadN = ours.filter((u) => !u.alive).length;
         for (const u of ours.sort((a, b) => a.hp - b.hp)) { if (deadN >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; deadN++; } }
         for (const u of ours) if (u.alive) u.hp = Math.round(u.maxHp * 0.3);
-        for (const u of w1.units) if (u.side === 'B' && u.alive) u.hp = Math.round(u.maxHp * 0.36); // ศัตรูก็บอบช้ำ เลือดเหลือง
+        // ศัตรูก็เสียไป 2 และเลือดเหลือง (สู้กันมาเท่าๆ กัน)
+        const en = w1.units.filter((u) => u.side === 'B'); let dB = en.filter((u) => !u.alive).length;
+        for (const u of en.sort((a, b) => a.hp - b.hp)) { if (dB >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; dB++; } }
+        for (const u of en) if (u.alive) u.hp = Math.round(u.maxHp * 0.36);
         ours.forEach((u) => { if (u.cls === 'medic' && !u.alive) { const other = ours.find((x) => x.alive && x.cls !== 'medic'); if (other) { other.alive = false; other.hp = 0; u.alive = true; u.hp = Math.round(u.maxHp * 0.3); } } });
         setTag('ยก 1: ฝ่ายเราโดนถล่ม…'); r.playWave(w1, Date.now() + 300, 1);
         d.timer = setTimeout(() => {
