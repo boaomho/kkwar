@@ -229,6 +229,10 @@
   }
 
   // ---------- มุมมอง: ร่วมกัน ----------
+  function navHtml(cur) {
+    const L = [['', '📱 ผู้เล่น'], ['screen', '📺 จอใหญ่'], ['admin', '🛠 Admin']];
+    return `<nav class="nav">` + L.map(([h, t]) => `<a href="#${h}" class="chip ${cur === h ? 'on' : ''}">${t}</a>`).join('') + `</nav>`;
+  }
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 2500); }
   function teamChip(team) { const t = D.TEAMS[team]; return `<span class="chip team" style="background:${t.color}">${t.emoji} ${t.name}</span>`; }
   function fmtTime(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return s; }
@@ -295,11 +299,11 @@
 
   // ---------- มุมมองผู้เล่น ----------
   function viewPlayer() {
-    if (ui.showGuide) return `<div class="wrap">${guideHtml()}</div>`;
+    if (ui.showGuide) return `<div class="wrap">${navHtml('')}${guideHtml()}</div>`;
     const p = myPlayer();
     if (!me || !p) return viewJoin();
     const team = p.team; const T = D.TEAMS[team];
-    let h = `<div class="wrap"><div class="topbar"><div class="brand">ศึกแก่งกระจาน<small>${esc(p.name)} · ${isCaptain() ? '👑 กัปตัน' : 'ฮีโร่'}</small></div>${teamChip(team)}</div>`;
+    let h = `<div class="wrap"><div class="topbar"><div class="brand">ศึกแก่งกระจาน<small>${esc(p.name)} · ${isCaptain() ? '👑 กัปตัน' : 'ฮีโร่'}</small></div>${teamChip(team)}</div>${navHtml('')}`;
     const inMatch = st.match && sideOf(team) && phase() === 'battle';
     if (!p.cls) h += viewPickClass(p);
     else if (inMatch) h += viewBattlePlayer(p);
@@ -310,7 +314,7 @@
     return h;
   }
   function viewJoin() {
-    let h = `<div class="wrap"><div class="center"><div class="hero-title">ศึกแก่งกระจาน</div><div class="sub">Outing BSG 2569 · เลือกทีมของคุณ</div></div>`;
+    let h = `<div class="wrap">${navHtml('')}<div class="center"><div class="hero-title">ศึกแก่งกระจาน</div><div class="sub">Outing BSG 2569 · เลือกทีมของคุณ</div></div>`;
     if (!ui.joinTeam) {
       h += `<div class="team-grid">` + D.TEAM_ORDER.map((t) => `<button class="team-btn team-${t}" data-act="join-team" data-team="${t}">${D.TEAMS[t].emoji} ${D.TEAMS[t].name}<small>${teamPlayers(t).length}/${roster(t).length} เข้าแล้ว</small></button>`).join('') + `</div>`;
     } else {
@@ -472,7 +476,7 @@
   // ---------- จอใหญ่ ----------
   function viewScreen() {
     const m = st.match; const ph = phase();
-    let h = `<div class="wrap wide"><div class="topbar"><div class="brand">⚔️ ศึกแก่งกระจาน<small>Outing BSG · เก่งกระจาน 2569</small></div><div class="row">${!isAdmin ? '<button class="ghost small" data-act="admin-login">host</button>' : '<span class="chip">🟢 host</span>'}</div></div>`;
+    let h = `<div class="wrap wide"><div class="topbar"><div class="brand">⚔️ ศึกแก่งกระจาน<small>Outing BSG · เก่งกระจาน 2569</small></div><div class="row">${navHtml('screen')}${!isAdmin ? '<button class="ghost small" data-act="admin-login">host</button>' : '<span class="chip">🟢 host</span>'}</div></div>`;
     if (ph === 'lobby' || !m) {
       h += `<div class="row" style="align-items:flex-start"><div class="panel grow" style="min-width:260px"><h2>เข้าร่วมเกม</h2><div class="row"><div id="qr"></div><div><div class="display" style="font-size:22px">${esc(location.origin + location.pathname)}</div><div class="hint">สแกน QR หรือเปิดลิงก์ เลือกทีม → ชื่อ → อาชีพ → วางตำแหน่ง</div></div></div></div>` + (ph === 'done' ? `<div class="grow">${viewPodium()}</div>` : '') + `</div>`;
       h += `<div class="admin-grid">` + D.TEAM_ORDER.map((t) => `<div class="panel"><div class="row"><h2 class="grow" style="color:${D.TEAMS[t].color}">${D.TEAMS[t].emoji} ${D.TEAMS[t].name}</h2><span class="small muted">${teamPlayers(t).length}/${roster(t).length} · ลงสนาม ${teamPlayers(t).filter((x) => x.cell != null).length}/8</span></div>${boardHtml(t, {})}<div class="row small">` + teamItems(t).map((it) => `<span class="chip">${D.ITEMS[it.id].emoji} ${it.locked ? '?' : D.TIER_NAMES[it.tier]}</span>`).join('') + `</div></div>`).join('') + `</div>`;
@@ -512,9 +516,9 @@
 
   // ---------- Admin ----------
   function viewAdmin() {
-    if (!isAdmin) return `<div class="wrap"><div class="panel"><h2>🔒 Admin</h2><input id="pin" type="password" inputmode="numeric" placeholder="PIN 4 หลัก" value="${esc(ui.pin)}"><button class="primary" data-act="pin">เข้า</button></div></div>`;
+    if (!isAdmin) return `<div class="wrap">${navHtml('admin')}<div class="panel"><h2>🔒 Admin</h2><input id="pin" type="password" inputmode="numeric" placeholder="PIN 4 หลัก" value="${esc(ui.pin)}"><button class="primary" data-act="pin">เข้า</button></div></div>`;
     const ph = phase(); const m = st.match; const S = settings();
-    let h = `<div class="wrap"><div class="topbar"><div class="brand">🛠 Admin<small>เฟส: ${ph} ${m ? '· ศึก ' + m.id + ' / ' + m.stage : ''}</small></div><div class="row"><button class="ghost small" data-act="atab" data-tab="control">ควบคุม</button><button class="ghost small" data-act="atab" data-tab="rank">อันดับ</button><button class="ghost small" data-act="atab" data-tab="roster">รายชื่อ</button><button class="ghost small" data-act="atab" data-tab="balance">สมดุล</button></div></div>`;
+    let h = `<div class="wrap"><div class="topbar"><div class="brand">🛠 Admin<small>เฟส: ${ph} ${m ? '· ศึก ' + m.id + ' / ' + m.stage : ''}</small></div></div>${navHtml('admin')}<div class="row"><button class="ghost small" data-act="atab" data-tab="control">ควบคุม</button><button class="ghost small" data-act="atab" data-tab="rank">อันดับ</button><button class="ghost small" data-act="atab" data-tab="roster">รายชื่อ</button><button class="ghost small" data-act="atab" data-tab="balance">สมดุล</button></div>`;
     if (ui.adminTab === 'control') {
       h += `<div class="panel"><h2>ลำดับการใช้งาน</h2><ol class="small"><li>บนรถ: ทุกคนเข้าเกม เลือกอาชีพ วางตำแหน่ง</li><li>หลังจบแต่ละกิจกรรม: กรอกอันดับในแท็บ "อันดับ"</li><li>ก่อนศึก: กด "จับฉลาก" → เปิด #screen บนจอใหญ่</li><li>กด "เริ่มศึกถัดไป" ทีละศึก ระบบเดินช่วงเองตามเวลา</li></ol></div>`;
       h += `<div class="panel"><h2>ควบคุมศึก</h2>${m ? stageBar() : ''}<div class="row">
