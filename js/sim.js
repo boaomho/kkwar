@@ -123,12 +123,6 @@ window.Sim = (function () {
         const targets = units.filter((u) => u.side === enemy && u.alive && u.deployed)
           .sort((a, b) => (side === 'A' ? a.x - b.x : b.x - a.x)).slice(0, (D.ITEMS.water.counts || [3, 3, 3, 3])[mod.itemTier]);
         for (const u of targets) { u.confusedUntil = mod.itemVal; events.push({ t: 0, type: 'confuse', to: u.id, dur: mod.itemVal }); }
-        if (mod.itemTier === 0) {
-          const dead = units.filter((u) => u.side === side && !u.alive);
-          const pick = dead.find((u) => u.id === mod.reviveId) || dead[0];
-          if (pick) { const u = pick; u.alive = true; u.deployed = true; u.hp = Math.round(u.maxHp * ((D.ITEMS.water.revive || 50) / 100));
-            events.push({ t: 0, type: 'revive', id: u.id, name: u.name, side }); }
-        }
       }
       if (mod.item === 'net') mod.netPending = true; // โยนตาข่ายตอนศัตรูวิ่งเข้ามา (หลัง netDelay วินาที)
     }

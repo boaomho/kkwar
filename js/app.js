@@ -288,7 +288,7 @@
   function itemsHtml(team, interactive) {
     const sel = st.teams[team] && st.teams[team].item && !st.teams[team].item.bonus && st.teams[team].item.id;
     return `<div class="item-grid">` + teamItems(team).map((it) => {
-      const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}${I.revive && it.tier === 0 ? ' + ชุบชีวิต 1 คน' : ''}`;
+      const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`;
       const cls = `item-card tier-${it.tier} ${it.used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel === it.id ? 'sel' : ''}`;
       const act = interactive && !it.used && !it.locked ? `data-act="item" data-item="${it.id}"` : '';
       return `<div class="${cls}" ${act}><div class="em">${I.emoji}</div><div><div class="nm">${I.name} ${it.used ? '(ใช้แล้ว)' : ''}</div><div class="tier">${tierTxt}</div><div class="ds">${I.desc} — จาก${D.ACTIVITIES[it.activity].name}</div></div></div>`;
@@ -307,7 +307,7 @@
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
       <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (ใช้ได้ทุกยกรวมถึงก่อนยก 1 · 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ทีมที่เก็บไว้ถึงรอบตัดสินได้เปรียบ) · <b>ถ้าเสมอ 1–1 รอบตัดสินแต่ละทีมได้เลือกไอเทมเทพเพิ่ม 1 ชิ้น</b></li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
-      ${D.ACTIVITY_ORDER.map((a) => { const A = D.ACTIVITIES[a], I = D.ITEMS[A.item]; return `<div class="demo-card"><div class="row"><b>🏁 ${A.name}</b> <span class="muted">→</span> <b>${I.emoji} ${I.name}</b></div><div class="arena demo"><canvas id="demo-${A.item}" data-demo="${A.item}"></canvas><div class="overlay"><div class="demo-tag">ตัวอย่าง: ระดับเทพ</div></div></div><div class="small">${I.desc}</div><div class="small muted">${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? ' + ชุบชีวิต' : '')).join(' / ')}</div></div>`; }).join('')}
+      ${D.ACTIVITY_ORDER.map((a) => { const A = D.ACTIVITIES[a], I = D.ITEMS[A.item]; return `<div class="demo-card"><div class="row"><b>🏁 ${A.name}</b> <span class="muted">→</span> <b>${I.emoji} ${I.name}</b></div><div class="arena demo"><canvas id="demo-${A.item}" data-demo="${A.item}"></canvas><div class="overlay"><div class="demo-tag">ตัวอย่าง: ระดับเทพ</div></div></div><div class="small">${I.desc}</div><div class="small muted">${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '')).join(' / ')}</div></div>`; }).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
       <button class="ghost" data-act="guide-close">ปิดคู่มือ</button></div>`;
   }
@@ -478,17 +478,9 @@
     if (isDecider(m)) {
       const t = st.teams[team] || {}; const selB = t.item && t.item.bonus ? t.item.id : null;
       h += `<div class="panel"><h2>⭐ รอบตัดสิน: ไอเทมเทพพิเศษ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">${t.bonusUsed ? 'ใช้สิทธิ์ไปแล้ว' : 'เลือกได้ 1 ชิ้น ระดับเทพ ใช้ได้ครั้งเดียวในรอบนี้ (เพิ่มจากไอเทมที่เหลือ)'}</div><div class="item-grid">` +
-        Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB === I.id ? 'sel' : ''}" ${isCaptain() && !t.bonusUsed ? `data-act="bonus-item" data-item="${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}${I.revive ? ' + ชุบชีวิต' : ''}</div></div></div>`).join('') + `</div></div>`;
+        Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB === I.id ? 'sel' : ''}" ${isCaptain() && !t.bonusUsed ? `data-act="bonus-item" data-item="${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div></div>`;
     }
     h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น ใช้ได้ทุกยกรวมถึงยกแรก (คู่แข่งไม่เห็นจนกว่ายกจะเริ่ม) แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ทุกรอบรวมกัน · แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
-    {
-      const t = st.teams[team] || {}; const it = t.item;
-      const waterTier0 = it && it.id === 'water' && (it.bonus || (teamItems(team).find((x) => x.id === 'water') || {}).tier === 0);
-      if (waterTier0 && m.stage !== 'plan') {
-        const dead = computeMatch().units.filter((u) => u.team === team && !u.alive);
-        if (dead.length) h += `<div class="panel"><h2>✨ น้ำมนต์ระดับเทพ: เลือกคนที่จะชุบชีวิต ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="name-grid">` + dead.map((u) => `<button class="name-btn ${(it.revive || dead[0].id) === u.id ? 'primary' : ''}" ${isCaptain() ? `data-act="revive" data-pid="${u.id}"` : 'disabled'}>${D.CLASSES[u.cls].emoji} ${esc(u.name)}</button>`).join('') + `</div><div class="hint">ถ้าไม่เลือก จะชุบคนแรกที่ล้ม</div></div>`;
-      }
-    }
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
