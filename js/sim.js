@@ -226,6 +226,7 @@ window.Sim = (function () {
         dmg *= 1 + S.moraleMax * mod.morale;
         dmg *= mod.wheel;
         if (a.charge) dmg *= S.cavCharge;
+        if (a.confused) dmg *= 1 - (S.confuseWeak == null ? 0.4 : S.confuseWeak);
         dmg *= S.varMin + rnd() * (S.varMax - S.varMin);
         const crit = rnd() < S.critChance;
         if (crit) dmg *= S.critMult;
