@@ -66,14 +66,14 @@ window.GameData = (function () {
     // เวลา (วินาที)
     tPlan: 40, tWave1: 15, tPause: 20, tWave2: 15, tWave3: 20, tResult: 30, roundsToWin: 2,
     // สมดุลอาชีพ
-    hp:  { cav: 125, spear: 175, archer: 105, medic: 120 },
-    atk: { cav: 14, spear: 13, archer: 11, medic: 0 },
+    hp:  { cav: 300, spear: 420, archer: 250, medic: 290 },
+    atk: { cav: 14, spear: 13, archer: 13, medic: 0 },
     speed: { cav: 2.4, spear: 1.2, archer: 1.4, medic: 1.3 },
-    healAmt: 22, healEvery: 1.5, medicMax: 2,
+    healAmt: 28, healEvery: 1.5, medicMax: 2,
     counterWin: 1.25, counterLose: 0.8,
     waveMult: [1.0, 1.15, 1.4],
     varMin: 0.85, varMax: 1.15, critChance: 0.10, critMult: 2.0,
-    moraleMax: 0.30, tapsPerPersonFull: 40,
+    moraleMax: 0.15, moraleHeal: 0.25, tapsPerPersonFull: 40,
     planFrontBonus: 1.10, planBackExposed: 1.15, cavCharge: 1.4,
     attackEvery: 1.0, archerRange: 0.38, meleeRange: 0.055, healRange: 0.2,
   };

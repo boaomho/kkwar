@@ -302,7 +302,7 @@
       <h3>อาชีพแพ้ทางเป็นวงกลม</h3><div class="counter-table"><div>🐎 ม้า<br><b>ชนะ</b> ธนู 🏹</div><div>🔱 หอก<br><b>ชนะ</b> ม้า 🐎</div><div>🏹 ธนู<br><b>ชนะ</b> หอก 🔱</div></div>
       <div class="small muted">ตีคู่ที่ชนะทาง ×${S.counterWin} / ตีคู่ที่แพ้ทาง ×${S.counterLose} · ⚕️ หมอไม่โจมตี ฮีลเพื่อนใกล้ๆ ทุก ${S.healEvery} วิ (ทีมละไม่เกิน ${S.medicMax}) · ม้าที่วิ่งมาไกลพุ่งชนครั้งแรกแรง ×${S.cavCharge}</div>
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
-      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ระลอกถัดไปตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}%</li></ol>
+      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
       ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
@@ -411,7 +411,7 @@
     if (m.stage === 'result') return h + viewResult() + (st.bracket ? viewBracket() : '');
     if (wave) {
       h += `<div class="arena"><canvas id="arena"></canvas><div class="overlay" id="arena-overlay"></div></div><div class="commentary" id="commentary"></div>` + hpSummaryHtml();
-      h += `<div class="panel"><div class="hint">ระหว่างรบรัวกดได้เลย สะสมขวัญกำลังใจไว้ยกถัดไป</div>` + tapHtml(side) + `</div>`;
+      h += `<div class="panel"><div class="hint">ระหว่างรบรัวกดได้เลย สะสมไว้ฟื้นเลือดตอนเริ่มยกถัดไป</div>` + tapHtml(side) + `</div>`;
       return h;
     }
     // plan / pause
@@ -426,14 +426,14 @@
     }
     h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
     if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ (ทุกรอบรวมกัน) แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
-    h += `<div class="panel sticky-bottom"><h2>🔥 รัวกดเติมขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
+    h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
   function tapHtml(side) {
     const stg = currentTapStage(); const stages = Object.keys(MORALE_STAGES).find((k) => MORALE_STAGES[k].includes(stg));
     const morale = stages ? moraleFor(side, MORALE_STAGES[stages]) : 0;
     const mine = ui.tapStage === stg ? ui.tapCount : 0;
-    return `<button class="tap-btn" data-act="tap">⚔️ กด! <span id="tapcount">${mine}</span></button><div class="row"><div class="grow meter ${morale >= 1 ? 'good' : ''}"><i style="width:${Math.round(morale * 100)}%"></i></div><b>${Math.round(morale * 100)}%</b></div><div class="hint">ขวัญทีม ${Math.round(morale * 100)}% → ยกถัดไปตีแรงขึ้น +${Math.round(settings().moraleMax * morale * 100)}%</div>`;
+    return `<button class="tap-btn" data-act="tap">⚔️ กด! <span id="tapcount">${mine}</span></button><div class="row"><div class="grow meter ${morale >= 1 ? 'good' : ''}"><i style="width:${Math.round(morale * 100)}%"></i></div><b>${Math.round(morale * 100)}%</b></div><div class="hint">ขวัญทีม ${Math.round(morale * 100)}% → ยกถัดไป ฟื้นเลือดทุกคน +${Math.round((settings().moraleHeal || 0) * morale * 100)}% และตีแรงขึ้น +${Math.round(settings().moraleMax * morale * 100)}%</div>`;
   }
   function hpSummaryHtml() {
     const m = st.match; const cm = computeMatch(); if (!cm.units.length) return '';

@@ -109,9 +109,16 @@ window.Sim = (function () {
         events.push({ t: 0, type: 'enter', id: u.id, side: u.side, name: u.name, cls: u.cls });
       }
     }
-    // ผลไอเทมตอนเริ่ม
+    // ผลไอเทมตอนเริ่ม + ฟื้นเลือดจากขวัญกำลังใจ (พักยก)
     for (const side of ['A', 'B']) {
       const mod = sideMod[side], enemy = side === 'A' ? 'B' : 'A';
+      if (waveIdx > 0 && mod.morale > 0 && S.moraleHeal) {
+        for (const u of units) if (u.side === side && u.alive && u.deployed && u.hp < u.maxHp) {
+          const h = Math.round(u.maxHp * S.moraleHeal * mod.morale); if (h <= 0) continue;
+          u.hp = Math.min(u.maxHp, u.hp + h);
+          events.push({ t: 0, type: 'heal', to: u.id, amt: h, item: true });
+        }
+      }
       if (mod.item === 'water') {
         for (const u of units) if (u.side === side && u.alive && u.deployed) {
           const h = Math.round(u.maxHp * mod.itemVal / 100);
