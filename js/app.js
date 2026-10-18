@@ -166,7 +166,7 @@
         const team = teamOfSide(side); const snap = snapshotSide(team);
         const t = st.teams[team] || {};
         let item = null;
-        if (w > 0 && t.item && t.item.id) {
+        if (t.item && t.item.id) {
           const its = teamItems(team).find((x) => x.id === t.item.id);
           if (its && !its.used && !its.locked) { item = { id: its.id, tier: its.tier }; upd['__teams/' + team + '/itemsUsed/' + its.id] = true; }
         }
@@ -302,7 +302,7 @@
       <h3>อาชีพแพ้ทางเป็นวงกลม</h3><div class="counter-table"><div>🐎 ม้า<br><b>ชนะ</b> ธนู 🏹</div><div>🔱 หอก<br><b>ชนะ</b> ม้า 🐎</div><div>🏹 ธนู<br><b>ชนะ</b> หอก 🔱</div></div>
       <div class="small muted">ตีคู่ที่ชนะทาง ×${S.counterWin} / ตีคู่ที่แพ้ทาง ×${S.counterLose} · ⚕️ หมอไม่โจมตี ฮีลเพื่อนใกล้ๆ ทุก ${S.healEvery} วิ (ทีมละไม่เกิน ${S.medicMax}) · ม้าที่วิ่งมาไกลพุ่งชนครั้งแรกแรง ×${S.cavCharge}</div>
       <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
-      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
+      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (ใช้ได้ทุกยกรวมถึงก่อนยก 1 · 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ทีมที่เก็บไว้ถึงรอบตัดสินได้เปรียบ)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ยกถัดไป <b>ฟื้นเลือดทุกคนสูงสุด +${Math.round((S.moraleHeal || 0) * 100)}%</b> และตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}% (กดครบ ${S.tapsPerPersonFull} ครั้ง/คน = เต็มหลอด)</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
       ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit + (I.counts ? ' ' + I.counts[i] + ' ตัว' : '') + (I.revive && i === 0 ? '+ชุบ' : '')).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
@@ -425,7 +425,7 @@
       h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
     }
     h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
-    if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ (ทุกรอบรวมกัน) แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
+    h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น ใช้ได้ทุกยกรวมถึงยกแรก (คู่แข่งไม่เห็นจนกว่ายกจะเริ่ม) แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ทุกรอบรวมกัน · แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
