@@ -45,7 +45,7 @@
 
   // ---------- ศึกปัจจุบัน ----------
   const STAGES = ['plan', 'wave1', 'pause1', 'wave2', 'pause2', 'wave3', 'result'];
-  const STAGE_NAME = { plan: 'วางแผนตาบอด', wave1: 'ระลอก 1', pause1: 'พักปรับทัพ 1', wave2: 'ระลอก 2', pause2: 'พักปรับทัพ 2', wave3: 'ระลอก 3 — ชี้ขาด', result: 'ผลการรบ' };
+  const STAGE_NAME = { plan: 'วางแผนตาบอด', wave1: 'ยก 1', pause1: 'พักยก 1', wave2: 'ยก 2', pause2: 'พักยก 2', wave3: 'ยก 3 — ชี้ขาด', result: 'ผลการรบ' };
   function stageDur(stage) { const S = settings(); return { plan: S.tPlan, wave1: S.tWave1, pause1: S.tPause, wave2: S.tWave2, pause2: S.tPause, wave3: S.tWave3, result: 0 }[stage] || 0; }
   function waveIndexOf(stage) { return { wave1: 0, wave2: 1, wave3: 2 }[stage]; }
   function sideOf(team) { const m = st.match; if (!m) return null; return m.a === team ? 'A' : m.b === team ? 'B' : null; }
@@ -112,7 +112,7 @@
   function canMove(pid) {
     const p = st.players[pid]; const mine = myPlayer(); if (!p || !mine || p.team !== mine.team) return false;
     if (st.match && sideOf(p.team) && /^wave/.test(st.match.stage)) return false;
-    if (st.match && sideOf(p.team) && st.match.stage !== 'plan' && st.match.stage !== 'result') { const u = computeMatch().units.find((x) => x.id === pid); if (u && u.deployed) return false; }
+    if (st.match && sideOf(p.team) && st.match.stage !== 'plan' && st.match.stage !== 'result') { const u = computeMatch().units.find((x) => x.id === pid); if (u && !u.alive) return false; }
     return pid === me.pid || isCaptain() || isAdmin;
   }
   let tapTimer = null;
@@ -251,7 +251,7 @@
     const rows = ['หน้า', 'กลาง', 'หลัง'];
     let h = `<div class="board-head"><div></div><div>เลนบน</div><div>เลนกลาง</div><div>เลนล่าง</div></div><div class="board">`;
     for (let r = 0; r < 3; r++) {
-      h += `<div class="rowlab"><b>${rows[r]}</b><span>ระลอก ${r + 1}</span></div>`;
+      h += `<div class="rowlab"><b>${rows[r]}</b></div>`;
       for (let l = 0; l < 3; l++) {
         const c = r * 3 + l; const p = byCell[c];
         if (!p) { h += `<div class="cell ${ui.sel && opts.interactive ? 'target' : ''}" data-act="cell" data-team="${team}" data-cell="${c}"></div>`; continue; }
@@ -288,9 +288,8 @@
       <h3>เกมคืออะไร</h3><div>ทีมละ 8 ฮีโร่ (คุณเองนั่นแหละ) เลือกอาชีพ วางตำแหน่ง แล้วให้สนามจำลองสู้กันเอง 3 ระลอก ใครเหลือเลือดรวมมากกว่าชนะ แต่ละคู่ต้องชนะ ${S.roundsToWin} ใน 3 รอบ ทุกรอบเปลี่ยนอาชีพและจัดทัพใหม่ได้ · จับฉลาก รอบรอง → ชิงที่ 3 → ชิงชนะเลิศ รางวัล ${S.prizes.map((p) => p.toLocaleString()).join(' / ')} บาท</div>
       <h3>อาชีพแพ้ทางเป็นวงกลม</h3><div class="counter-table"><div>🐎 ม้า<br><b>ชนะ</b> ธนู 🏹</div><div>🔱 หอก<br><b>ชนะ</b> ม้า 🐎</div><div>🏹 ธนู<br><b>ชนะ</b> หอก 🔱</div></div>
       <div class="small muted">ตีคู่ที่ชนะทาง ×${S.counterWin} / ตีคู่ที่แพ้ทาง ×${S.counterLose} · ⚕️ หมอไม่โจมตี ฮีลเพื่อนใกล้ๆ ทุก ${S.healEvery} วิ (ทีมละไม่เกิน ${S.medicMax}) · ม้าที่วิ่งมาไกลพุ่งชนครั้งแรกแรง ×${S.cavCharge}</div>
-      <h3>แถวที่วาง = จังหวะที่ออก</h3><ol><li><b>แถวหน้า</b> ออกวินาทีที่ 0 (ระลอก 1)</li><li><b>แถวกลาง</b> ออกระลอก 2</li><li><b>แถวหลัง</b> ไพ่ตาย ออกระลอก 3 ดาเมจทุกคน ×${S.waveMult[2]}</li></ol>
-      <div class="small">มี 9 ช่อง 8 คน เลนบน/กลาง/ล่าง มีผล: หอกตีคนที่ใกล้ในเลนตัวเองก่อน ม้าพุ่งข้ามไปหาแถวหลัง ธนูยิงจากไกล</div>
-      <h3>ช่วงพักปรับทัพ (${S.tPause} วิ) ทำได้ 4 อย่าง</h3><ol><li>ย้ายฮีโร่ที่ <b>ยังไม่ออก</b> ไปช่องไหนก็ได้</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ระลอกถัดไปตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}%</li></ol>
+      <h3>ตำแหน่งมีผล</h3><div class="small">ทั้ง 8 คนออกพร้อมกันตั้งแต่ยกแรก มี 9 ช่อง: <b>แถวหน้า</b> ปะทะก่อน · <b>แถวหลัง</b> ปลอดภัยกว่า (เหมาะกับธนู/หมอ) แต่ม้าศัตรูที่เลือก "โอบหลัง" จะพุ่งมาหา · เลนบน/กลาง/ล่าง: หอกตีคนที่ใกล้ในเลนตัวเองก่อน · ยก 2 ดาเมจ ×${S.waveMult[1]} ยก 3 ×${S.waveMult[2]}</div>
+      <h3>พักยก (${S.tPause} วิ) ทุกคนที่รอดกลับเข้าตำแหน่ง เลือดเท่าเดิม ทำได้ 4 อย่าง</h3><ol><li>จัดตำแหน่งใหม่ <b>ทั้งทัพ</b> (คนที่ล้มแล้วไม่ฟื้น) เช่น เอาหอกไปดักเลนที่ม้าเขามา</li><li>กัปตันเลือก <b>แผนเข้าตี</b>: ปะทะหน้า / เข้าด้านข้าง / โอบหลัง</li><li>กัปตันเลือก <b>ไอเทม</b> 1 ชิ้น (มี 4 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่ ต้องเลือกว่าจะทุ่มรอบไหน)</li><li><b>ทุกคนรัวกด</b> เติมขวัญกำลังใจ → ระลอกถัดไปตีแรงขึ้นสูงสุด +${Math.round(S.moraleMax * 100)}%</li></ol>
       <h3>ไอเทมจากกิจกรรม outing</h3><div class="small">ทุกทีมได้ครบ 4 ชิ้น แต่ <b>ระดับต่างกันตามอันดับ</b>: ที่ 1 = เทพ, ที่ 2 = แกร่ง, ที่ 3 = ธรรมดา, ที่ 4 = ขำๆ</div>
       ${Object.values(D.ITEMS).map((I) => `<div class="small">${I.emoji} <b>${I.name}</b> — ${I.desc}: ${I.tiers.map((v, i) => D.TIER_NAMES[i] + ' ' + v + I.unit).join(' / ')}</div>`).join('')}
       <h3>ตัดสินผล</h3><div class="small">ฝ่ายไหนล้มหมดก่อนแพ้ทันที → ครบ 3 ระลอกวัด % เลือดรวม → เท่ากันวัดยอดรัวกด · ดาเมจมีสุ่ม ±15% และคริติคอล 10% ×2 เพื่อให้ลุ้น แต่การวางแผนคือตัวตัดสินหลัก</div>
@@ -333,9 +332,9 @@
   function viewLobbyPlayer(p) {
     const team = p.team;
     let h = `<div class="panel"><div class="row"><h2 class="grow">จัดทัพ ${D.TEAMS[team].name}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8 ลงสนาม</span></div>
-      <div class="hint">${ui.sel ? '👉 แตะช่องว่างที่จะวาง (แตะช่องที่มีคนเพื่อสลับ)' : 'แตะตัวเอง' + (isCaptain() ? ' หรือเพื่อนร่วมทีม (กัปตันย้ายได้ทุกคน)' : '') + ' แล้วแตะช่องที่จะวาง · แถวหน้าออกก่อน แถวหลังออกทีหลัง'}</div>
+      <div class="hint">${ui.sel ? '👉 แตะช่องว่างที่จะวาง (แตะช่องที่มีคนเพื่อสลับ)' : 'แตะตัวเอง' + (isCaptain() ? ' หรือเพื่อนร่วมทีม (กัปตันย้ายได้ทุกคน)' : '') + ' แล้วแตะช่องที่จะวาง · แถวหน้าปะทะก่อน แถวหลังปลอดภัยกว่าแต่ม้าศัตรูพุ่งมาหาได้'}</div>
       ${boardHtml(team, { interactive: true })}</div>`;
-    h += `<div class="panel"><h2>แผนเข้าตีระลอกแรก ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
+    h += `<div class="panel"><h2>แผนเข้าตียกแรก ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
     h += `<div class="panel"><h2>ไอเทมของทีม</h2><div class="hint">ได้จากอันดับกิจกรรม outing ใช้ได้ในช่วงพักปรับทัพ</div>${itemsHtml(team, false)}</div>`;
     h += `<div class="panel"><h2>สมาชิก</h2><div class="roster-list">` + roster(team).map((n) => { const q = playerByName(team, n); return `<div class="u"><span>${q && q.cls ? D.CLASSES[q.cls].emoji : (q ? '❔' : '⬜')}</span><span>${esc(n)} ${captain(team) === n ? '👑' : ''}</span><span class="small muted">${q ? (q.cell != null ? 'ลงสนาม' : 'ยังไม่วาง') : 'ยังไม่เข้า'}</span></div>`; }).join('') + `</div></div>`;
     h += practiceHtml(team);
@@ -399,20 +398,20 @@
     if (m.stage === 'result') return h + viewResult() + (st.bracket ? viewBracket() : '');
     if (wave) {
       h += `<div class="arena"><canvas id="arena"></canvas><div class="overlay" id="arena-overlay"></div></div><div class="commentary" id="commentary"></div>` + hpSummaryHtml();
-      h += `<div class="panel"><div class="hint">ระหว่างรบรัวกดได้เลย สะสมขวัญกำลังใจไว้ระลอกถัดไป</div>` + tapHtml(side) + `</div>`;
+      h += `<div class="panel"><div class="hint">ระหว่างรบรัวกดได้เลย สะสมขวัญกำลังใจไว้ยกถัดไป</div>` + tapHtml(side) + `</div>`;
       return h;
     }
     // plan / pause
     const S = settings(); const w = m.stage === 'plan' ? 0 : m.stage === 'pause1' ? 1 : 2;
     const cm = computeMatch();
     if (m.stage !== 'plan') h += hpSummaryHtml();
-    h += `<div class="panel"><div class="row"><h2 class="grow">${m.stage === 'plan' ? 'วางทัพ 8 คน' : 'ปรับทัพก่อนระลอก ' + (w + 1)}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8</span></div>
-      <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'ย้ายได้เฉพาะคนที่ยังไม่ออก (⚔️ = ออกสนามแล้ว)')}</div>${boardHtml(team, { interactive: true })}${m.stage === 'plan' ? `<button class="ghost" data-act="change-class">🔁 เปลี่ยนอาชีพของฉัน (${D.CLASSES[p.cls].emoji} ${D.CLASSES[p.cls].name})</button>` : ''}</div>`;
+    h += `<div class="panel"><div class="row"><h2 class="grow">${m.stage === 'plan' ? 'วางทัพ 8 คน' : 'พักยก — จัดทัพใหม่ก่อนยก ' + (w + 1)}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8</span></div>
+      <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'พักยก: ทุกคนที่ยังรอดกลับเข้าตำแหน่ง ย้ายใหม่ได้ทั้งทัพ (เลือดไม่ฟื้น)')}</div>${boardHtml(team, { interactive: true })}${m.stage === 'plan' ? `<button class="ghost" data-act="change-class">🔁 เปลี่ยนอาชีพของฉัน (${D.CLASSES[p.cls].emoji} ${D.CLASSES[p.cls].name})</button>` : ''}</div>`;
     if (m.stage !== 'plan') {
       h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
     }
-    h += `<div class="panel"><h2>แผนเข้าตีระลอก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
-    if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมระลอกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ระลอกละ 1 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ (ทุกรอบรวมกัน) แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
+    h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1} ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2>${plansHtml(team, isCaptain())}</div>`;
+    if (m.stage !== 'plan') h += `<div class="panel"><h2>ใช้ไอเทมยกนี้ ${isCaptain() ? '' : '<span class="small muted">(กัปตันเลือก)</span>'}</h2><div class="hint">ยกละ 1 ชิ้น แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ (ทุกรอบรวมกัน) แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, isCaptain())}</div>`;
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกดเติมขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
     return h;
   }
@@ -420,7 +419,7 @@
     const stg = currentTapStage(); const stages = Object.keys(MORALE_STAGES).find((k) => MORALE_STAGES[k].includes(stg));
     const morale = stages ? moraleFor(side, MORALE_STAGES[stages]) : 0;
     const mine = ui.tapStage === stg ? ui.tapCount : 0;
-    return `<button class="tap-btn" data-act="tap">⚔️ กด! <span id="tapcount">${mine}</span></button><div class="row"><div class="grow meter ${morale >= 1 ? 'good' : ''}"><i style="width:${Math.round(morale * 100)}%"></i></div><b>${Math.round(morale * 100)}%</b></div><div class="hint">ขวัญทีม ${Math.round(morale * 100)}% → ระลอกถัดไปตีแรงขึ้น +${Math.round(settings().moraleMax * morale * 100)}%</div>`;
+    return `<button class="tap-btn" data-act="tap">⚔️ กด! <span id="tapcount">${mine}</span></button><div class="row"><div class="grow meter ${morale >= 1 ? 'good' : ''}"><i style="width:${Math.round(morale * 100)}%"></i></div><b>${Math.round(morale * 100)}%</b></div><div class="hint">ขวัญทีม ${Math.round(morale * 100)}% → ยกถัดไปตีแรงขึ้น +${Math.round(settings().moraleMax * morale * 100)}%</div>`;
   }
   function hpSummaryHtml() {
     const m = st.match; const cm = computeMatch(); if (!cm.units.length) return '';
@@ -509,7 +508,7 @@
     else if (m.stage !== 'result') h += `<div class="small muted">กำลังวางแผน… (ลับ)</div><div class="row"><div class="grow meter ${morale >= 1 ? 'good' : ''}"><i style="width:${Math.round(morale * 100)}%"></i></div><b>${Math.round(morale * 100)}%</b></div>`;
     const ps = teamPlayers(team).filter((p) => p.cell != null).sort((a, b) => a.cell - b.cell);
     h += `<div class="roster-list">` + ps.map((p) => { const pid = D.slug(team + ':' + p.name); const u = live.find((x) => x.id === pid); const pct = u ? u.hp / u.maxHp : 1;
-      return `<div class="u ${u && !u.alive ? 'dead' : ''}"><span>${p.cls ? D.CLASSES[p.cls].emoji : '❔'}</span><span>${esc(p.name)} ${u && !u.deployed && u.alive ? '<span class="small muted">(รอ)</span>' : ''}</span><div class="b"><i style="width:${Math.round(pct * 100)}%;background:${pct > .5 ? '#3ddc84' : pct > .25 ? '#f5c518' : '#ff4d5e'}"></i></div></div>`; }).join('') + `</div>`;
+      return `<div class="u ${u && !u.alive ? 'dead' : ''}"><span>${p.cls ? D.CLASSES[p.cls].emoji : '❔'}</span><span>${esc(p.name)} ${u && !u.deployed && u.alive ? '' : ''}</span><div class="b"><i style="width:${Math.round(pct * 100)}%;background:${pct > .5 ? '#3ddc84' : pct > .25 ? '#f5c518' : '#ff4d5e'}"></i></div></div>`; }).join('') + `</div>`;
     h += `<div class="row small">` + teamItems(team).map((it) => `<span class="chip ${it.used ? 'muted' : ''}">${D.ITEMS[it.id].emoji} ${it.locked ? '?' : D.TIER_NAMES[it.tier]}${it.used ? ' ✓' : ''}</span>`).join('') + `</div></div>`;
     return h;
   }
@@ -601,7 +600,7 @@
           if (pid && !canMove(pid)) { toast('ย้ายคนนี้ไม่ได้'); return; }
           await moveHero(ui.sel, cell); ui.sel = null; return;
         }
-        if (pid) { if (!canMove(pid)) { toast(pid === me.pid ? 'ตอนนี้ย้ายไม่ได้ (ออกสนามแล้วหรืออยู่ระหว่างรบ)' : 'ย้ายได้เฉพาะตัวเอง (กัปตันย้ายได้ทุกคน)'); return; } ui.sel = pid; render(); }
+        if (pid) { if (!canMove(pid)) { toast(pid === me.pid ? 'ตอนนี้ย้ายไม่ได้ (ล้มแล้วหรืออยู่ระหว่างรบ)' : 'ย้ายได้เฉพาะตัวเอง (กัปตันย้ายได้ทุกคน)'); return; } ui.sel = pid; render(); }
       }
       else if (act === 'plan') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; await R('teams/' + p.team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const p = myPlayer(); if (!p || !(isCaptain() || isAdmin)) return; const cur = st.teams[p.team] && st.teams[p.team].item; await R('teams/' + p.team).update({ item: cur && cur.id === el.dataset.item ? null : { id: el.dataset.item } }); }

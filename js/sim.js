@@ -83,7 +83,7 @@ window.Sim = (function () {
                 alive: true, deployed: false, stunUntil: -1, cd: 0, lastHeal: -99, engaged: false };
           units.push(u); byId[pid] = u;
         }
-        if (!u.deployed) { u.cell = +c; const pos = cellPos(side, u.cell); u.x = pos.x; u.y = pos.y; }
+        if (u.alive) { u.cell = +c; const pos = cellPos(side, u.cell); u.x = pos.x; u.y = pos.y; } // พักยก: กลับเข้าตำแหน่งที่จัดไว้
       }
       // ไอเทม
       const mod = sideMod[side];
@@ -101,11 +101,10 @@ window.Sim = (function () {
       }
     }
 
-    // ส่งตัวเข้าสนาม: แถวที่ <= waveIdx
+    // ส่งตัวเข้าสนามทั้งหมดตั้งแต่ยกแรก
     for (const u of units) {
       if (!u.alive) continue;
-      const row = Math.floor(u.cell / 3);
-      if (!u.deployed && row <= waveIdx) {
+      if (!u.deployed) {
         u.deployed = true; u.cd = rnd() * 0.6; // เริ่มตีไม่พร้อมกัน
         events.push({ t: 0, type: 'enter', id: u.id, side: u.side, name: u.name, cls: u.cls });
       }
