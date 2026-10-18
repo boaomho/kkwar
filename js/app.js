@@ -403,13 +403,15 @@
       const inpYes = { A: { ...inpNo.A, item: { id: itemId, tier: 0 } }, B: inpNo.B };
       if (itemId === 'water') {
         // ยก 1: ฝ่ายเราเสียเปรียบ มีคนล้ม → พักยก → ยก 2 ใช้น้ำทิพย์ ฟื้น+ชุบ
-        units.forEach((u) => { if (u.side === 'A') u.hp = Math.round(u.maxHp * (0.22 + 0.1 * (u.cell % 3))); });
+        units.forEach((u) => { u.hp = Math.round(u.maxHp * (u.side === 'A' ? 0.3 + 0.08 * (u.cell % 3) : 0.55)); });
         const w1 = Sim.simulateWave(units, 0, inpNo, ros, S, seed, 6);
         // ให้แน่ใจว่าจบยก 1 มีคนล้ม 2 และที่เหลือเลือดกลางๆ
         const ours = w1.units.filter((u) => u.side === 'A');
         let deadN = ours.filter((u) => !u.alive).length;
         for (const u of ours.sort((a, b) => a.hp - b.hp)) { if (deadN >= 2) break; if (u.alive) { u.alive = false; u.hp = 0; deadN++; } }
-        for (const u of ours) if (u.alive) u.hp = Math.max(u.hp, Math.round(u.maxHp * 0.35));
+        for (const u of ours) if (u.alive) u.hp = Math.round(u.maxHp * 0.3);
+        for (const u of w1.units) if (u.side === 'B' && u.alive) u.hp = Math.round(u.maxHp * 0.42); // ศัตรูก็บอบช้ำ เลือดเหลือง
+        ours.forEach((u) => { if (u.cls === 'medic' && !u.alive) { const other = ours.find((x) => x.alive && x.cls !== 'medic'); if (other) { other.alive = false; other.hp = 0; u.alive = true; u.hp = Math.round(u.maxHp * 0.3); } } });
         setTag('ยก 1: ฝ่ายเราโดนถล่ม…'); r.playWave(w1, Date.now() + 300, 1);
         d.timer = setTimeout(() => {
           if (demos[itemId] !== d) return;
@@ -417,7 +419,7 @@
           d.timer = setTimeout(() => {
             if (demos[itemId] !== d) return;
             const w2 = Sim.simulateWave(w1.units, 1, inpYes, ros, S, seed, 7);
-            setTag('ยก 2: ฟื้นเลือด 35% ทั้งทีม + ชุบชีวิตคนที่ล้ม!'); r.playWave(w2, Date.now() + 300, 1);
+            setTag('ยก 2: +35% ทั้งทีม + ชุบ 1 คน → พลิกกลับมารุม!'); r.playWave(w2, Date.now() + 300, 1);
             d.timer = setTimeout(loop, 8000);
           }, 2500);
         }, 6800);
