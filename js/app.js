@@ -524,7 +524,8 @@
         <button data-act="next-round" ${m && m.stage === 'result' && !matchDecided(m) ? '' : 'disabled'}>▶ รอบถัดไป</button>
         <button class="ghost" data-act="extend" ${m && m.stage !== 'result' ? '' : 'disabled'}>+15 วิ</button>
         <button class="danger" data-act="restart-match" ${m ? '' : 'disabled'}>↺ เริ่มศึกนี้ใหม่</button>
-      </div>${st.bracket ? viewBracket() : ''}</div>`;
+        <button class="ghost" data-act="simulate-pair" ${m ? '' : 'disabled'}>🎲 จำลองทัพปัจจุบันของคู่นี้ 100 ครั้ง</button>
+      </div>${ui.simResult ? `<div class="small">${ui.simResult}</div>` : ''}${st.bracket ? viewBracket() : ''}</div>`;
       h += `<div class="panel"><h2>สถานะทีม</h2>` + D.TEAM_ORDER.map((t) => `<div class="small"><b style="color:${D.TEAMS[t].color}">${D.TEAMS[t].name}</b> เข้า ${teamPlayers(t).length} · มีอาชีพ ${teamPlayers(t).filter((x) => x.cls).length} · ลงสนาม ${teamPlayers(t).filter((x) => x.cell != null).length}/8 · กัปตัน ${esc(captain(t))}</div>`).join('') + `</div>`;
       h += `<div class="panel"><h2>⚠️ อันตราย</h2><div class="row"><button class="danger" data-act="reset-match">ล้างศึกปัจจุบัน+สาย (กลับไปล็อบบี้)</button><button class="danger" data-act="reset-all">ล้างทุกอย่าง (ผู้เล่น/อันดับ/ตั้งค่า)</button></div><div class="row"><button class="ghost" data-act="fill-demo">🧪 เติมผู้เล่นจำลองให้ครบทุกทีม (ทดสอบ)</button></div></div>`;
     } else if (ui.adminTab === 'rank') {
@@ -612,6 +613,13 @@
       else if (act === 'draw') { if (st.bracket && !confirmUi(el, 'จับฉลากใหม่จะล้างผลศึกทั้งหมด กดอีกครั้งเพื่อยืนยัน')) return; await R('match').set(null); await drawBracket(); toast('จับฉลากแล้ว'); }
       else if (act === 'next-match') { if (st.match && st.match.stage === 'result' && !matchDecided(st.match)) return toast('คู่นี้ยังไม่จบ (ต้องชนะ ' + settings().roundsToWin + ' รอบ)'); await startNextMatch(); }
       else if (act === 'next-round') { await nextRound(); }
+      else if (act === 'simulate-pair') {
+        const m = st.match; const S = settings(); const A = snapshotSide(m.a), B = snapshotSide(m.b); const ros = { ...A.roster, ...B.roster };
+        let wa = 0, wb = 0; const N = 100;
+        for (let i = 0; i < N; i++) { const r = Sim.simulateMatch({ A: { team: m.a, cells: A.cells, plans: [A.plan, A.plan, A.plan], items: [null, null, null], morale: 0 }, B: { team: m.b, cells: B.cells, plans: [B.plan, B.plan, B.plan], items: [null, null, null], morale: 0 } }, ros, S, 'sim' + Date.now() + i); if (r.result.winner === 'A') wa++; else wb++; }
+        ui.simResult = `ทัพตอนนี้ (ไม่นับไอเทม/รัวกด แผน ${D.PLANS[A.plan].name} vs ${D.PLANS[B.plan].name}): ${D.TEAMS[m.a].name} ชนะ ${wa} / ${D.TEAMS[m.b].name} ชนะ ${wb} จาก ${N} ครั้ง`;
+        render();
+      }
       else if (act === 'advance') { await advanceStage(); }
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
       else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด? กดอีกครั้ง')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) upd[t + '/itemsUsed'] = null; await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
