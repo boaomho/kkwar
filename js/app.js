@@ -387,6 +387,8 @@
     h += `</div><div class="row"><button class="ghost" data-act="pr-random">🎲 สุ่มหุ่น</button><button class="ghost" data-act="pr-clear">✖ ล้าง</button><span class="small muted">หุ่น ${Object.values(pr.enemyCells).filter(Boolean).length}/8</span></div>
       <div class="row"><label class="small">แผนเรา</label><select id="pr-plan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.plan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select>
       <label class="small">แผนหุ่น</label><select id="pr-eplan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.eplan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select></div>
+      ${!pr.run ? `<div class="row"><button class="${pr.decider ? 'gold' : 'ghost'}" data-act="pr-decider">⭐ จำลองรอบตัดสิน (เสมอ 1-1): ${pr.decider ? 'เปิด' : 'ปิด'}</button><span class="small muted">ได้ไอเทมเทพเลือกเอง 1 ชิ้นเพิ่ม</span></div>` : ''}
+      ${!pr.run && pr.decider ? `<h3>⭐ ไอเทมเทพพิเศษ (เลือก 1 ใช้ยก 1 หรือเก็บไว้ใช้ตอนพักยก)</h3><div class="item-grid">` + Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${pr.item0 === 'bonus:' + I.id ? 'sel' : ''}" data-act="pr-item0" data-item="bonus:${I.id}"><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div>` : ''}
       ${!pr.run ? `<h3>ใช้ไอเทมยก 1 (ถ้าจะใช้ · แตะซ้ำเพื่อยกเลิก)</h3><div class="item-grid">` + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`; return `<div class="item-card tier-${it.tier} ${it.locked ? 'locked' : ''} ${pr.item0 === it.id ? 'sel' : ''}" ${!it.locked ? `data-act="pr-item0" data-item="${it.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">${tierTxt}</div></div></div>`; }).join('') + `</div>` : ''}
       <div class="row"><button class="primary" data-act="practice-start">▶ เริ่มซ้อม${pr.run ? 'ใหม่' : ''}</button>${pr.run ? '<button class="ghost" data-act="practice-stop">หยุด</button>' : ''}</div>`;
     if (pr.run) {
@@ -398,6 +400,7 @@
         h += `<div class="panel"><div class="row"><h2 class="grow">จัดทัพใหม่ก่อนยก ${r.waveIdx + 1}</h2></div><div class="hint">${ui.prSel ? '👉 แตะช่องที่จะวาง' : 'แตะคนที่รอด แล้วแตะช่อง (เลือดไม่ฟื้น เหมือนศึกจริง)'}</div>${prBoardHtml(r, 'A', true)}</div>`;
         h += `<div class="panel"><h3>ทัพหุ่นตอนนี้</h3>${prBoardHtml(r, 'B', false)}</div>`;
         h += `<div class="panel"><h2>แผนเข้าตียก ${r.waveIdx + 1}</h2><div class="plan-grid">` + Object.values(D.PLANS).map((p) => `<button class="plan-btn ${r.plan === p.id ? 'sel' : ''}" data-act="pr-plan" data-plan="${p.id}"><span>${p.emoji}</span><b>${p.name}</b></button>`).join('') + `</div></div>`;
+        if (r.decider) h += `<div class="panel"><h2>⭐ รอบตัดสิน: ไอเทมเทพพิเศษ</h2><div class="hint">${r.bonusUsed ? 'ใช้สิทธิ์ไปแล้ว' : 'เลือกได้ 1 ชิ้น ระดับเทพ ใช้ได้ครั้งเดียว'}</div><div class="item-grid">` + Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${r.bonusUsed ? 'used' : ''} ${r.item === 'bonus:' + I.id ? 'sel' : ''}" ${!r.bonusUsed ? `data-act="pr-item" data-item="bonus:${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div></div>`;
         h += `<div class="panel"><h2>ใช้ไอเทมยกนี้</h2><div class="hint">ระดับตามอันดับจริงของทีม ชิ้นละครั้งต่อการซ้อม 1 ครั้ง</div><div class="item-grid">` + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const used = !!r.itemsUsed[it.id]; const sel = r.item === it.id; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`;
           return `<div class="item-card tier-${it.tier} ${used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel ? 'sel' : ''}" ${!used && !it.locked ? `data-act="pr-item" data-item="${it.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}${used ? ' (ใช้แล้ว)' : ''}</div><div class="tier">${tierTxt}</div></div></div>`; }).join('') + `</div></div>`;
         h += `<button class="primary" data-act="pr-next" style="font-size:20px">▶ เริ่มยก ${r.waveIdx + 1}</button>`;
@@ -478,13 +481,14 @@
     if (!i) return toast('จัดหุ่นก่อนอย่างน้อย 1 ตัว');
     const roster = { ...A.roster, ...ros };
     const units = Sim.createUnits({ A: { team, cells: A.cells }, B: { team: eteam, cells: ecells } }, roster, S);
-    pr.run = { stage: 'wave', waveIdx: 0, units, cells: { ...A.cells }, ecells, roster, teams: { A: team, B: eteam }, plan: pr.plan, eplan: pr.eplan, item: pr.item0 || null, itemsUsed: {}, waves: [], seed: 'practice-' + Date.now(), playing: -1 };
+    pr.run = { stage: 'wave', waveIdx: 0, units, cells: { ...A.cells }, ecells, roster, teams: { A: team, B: eteam }, plan: pr.plan, eplan: pr.eplan, item: pr.item0 || null, itemsUsed: {}, decider: !!pr.decider, bonusUsed: false, waves: [], seed: 'practice-' + Date.now(), playing: -1 };
     practiceWave(); render(); practiceTick();
   }
   function practiceWave() {
     const r = ui.practice.run; const S = settings(); const team = r.teams.A; const durs = [S.tWave1, S.tWave2, S.tWave3];
     let item = null;
-    if (r.item && !r.itemsUsed[r.item]) { const it = teamItems(team).find((x) => x.id === r.item); if (it && !it.locked) { item = { id: it.id, tier: it.tier }; r.itemsUsed[r.item] = true; } }
+    if (r.item && r.item.startsWith('bonus:')) { const id = r.item.slice(6); if (r.decider && !r.bonusUsed && D.ITEMS[id]) { item = { id, tier: 0 }; r.bonusUsed = true; } }
+    else if (r.item && !r.itemsUsed[r.item]) { const it = teamItems(team).find((x) => x.id === r.item); if (it && !it.locked) { item = { id: it.id, tier: it.tier }; r.itemsUsed[r.item] = true; } }
     r.item = null;
     const inputs = { A: { team, plan: r.plan, item, morale: 0, cells: r.cells }, B: { team: r.teams.B, plan: r.eplan, item: null, morale: 0, cells: r.ecells } };
     const w = Sim.simulateWave(r.units, r.waveIdx, inputs, r.roster, S, r.seed, durs[r.waveIdx]);
@@ -757,6 +761,7 @@
       else if (act === 'pr-cell') { const c = +el.dataset.cell; const pr = ui.practice; const cur = pr.enemyCells[c] || null; let ni = (CYCLE.indexOf(cur) + 1) % CYCLE.length; if (CYCLE[ni] && Object.values(pr.enemyCells).filter(Boolean).length >= 8 && !cur) ni = 0; if (CYCLE[ni] === 'medic' && Object.values(pr.enemyCells).filter((x) => x === 'medic').length >= settings().medicMax) ni = 0; pr.enemyCells[c] = CYCLE[ni]; render(); }
       else if (act === 'pr-random') { ui.practice.enemyCells = randomEnemy(); render(); }
       else if (act === 'pr-item0') { ui.practice.item0 = ui.practice.item0 === el.dataset.item ? null : el.dataset.item; render(); }
+      else if (act === 'pr-decider') { ui.practice.decider = !ui.practice.decider; if (!ui.practice.decider && (ui.practice.item0 || '').startsWith('bonus:')) ui.practice.item0 = null; render(); }
       else if (act === 'pr-plan') { ui.practice.run.plan = el.dataset.plan; render(); }
       else if (act === 'pr-item') { const r = ui.practice.run; r.item = r.item === el.dataset.item ? null : el.dataset.item; render(); }
       else if (act === 'pr-next') { const r = ui.practice.run; if (r.stage !== 'pause') return; ui.prSel = null; practiceWave(); render(); practiceTick(); }
