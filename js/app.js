@@ -100,7 +100,7 @@
   function pidOf(team, name) { return D.slug(team + ':' + name); }
   function canChangeClass(team) { if (st.match && sideOf(team) && phase() === 'battle' && st.match.stage !== 'plan' && st.match.stage !== 'result') return false; return true; }
   async function setClassFor(team, name, cls) {
-    if (!(isCtrl(team) || isAdmin)) return toast('เฉพาะผู้ควบคุมทีม');
+    if (!isCtrl(team)) return toast('เฉพาะผู้ควบคุมทีม');
     if (!canChangeClass(team)) return toast('เปลี่ยนอาชีพได้เฉพาะช่วงวางแผนก่อนเริ่มรอบ');
     const pid = pidOf(team, name); const ex = st.players[pid];
     if (cls === 'medic') { const n = teamPlayers(team).filter((x) => x.cls === 'medic' && x.name !== name).length; if (n >= settings().medicMax) return toast('ทีมมีหมอครบ ' + settings().medicMax + ' คนแล้ว'); }
@@ -121,7 +121,7 @@
   }
   function canMove(pid) {
     const p = st.players[pid]; if (!p) return false;
-    if (!(isCtrl(p.team) || isAdmin)) return false;
+    if (!isCtrl(p.team)) return false;
     if (st.match && sideOf(p.team) && /^wave/.test(st.match.stage)) return false;
     if (st.match && sideOf(p.team) && st.match.stage !== 'plan' && st.match.stage !== 'result') { const u = computeMatch().units.find((x) => x.id === pid); if (u && !u.alive) return false; }
     return true;
@@ -356,7 +356,7 @@
     return h;
   }
   function viewSetup(team) {
-    const ctrl = isCtrl(team) || isAdmin; const S = settings();
+    const ctrl = isCtrl(team); const S = settings();
     let h = '';
     if (me.role === 'ctrl' && !isCtrl(team)) h += `<div class="panel"><b>⚠️ สิทธิ์ผู้ควบคุมไม่ได้อยู่ที่เครื่องนี้แล้ว</b><div class="hint">${ctrlOf(team) ? 'มีเครื่องอื่นเป็นผู้ควบคุมอยู่ ต้องให้เครื่องนั้นกด "สลับบทบาท" ก่อน' : 'ยังไม่มีผู้ควบคุม กดรับสิทธิ์ได้'}</div>${ctrlOf(team) ? '' : `<button class="gold" data-act="role-ctrl" data-team="${team}">🎮 รับสิทธิ์ผู้ควบคุม</button>`}</div>`;
     if (ctrl) {
@@ -506,7 +506,7 @@
     setTimeout(practiceTick, 300);
   }
   function viewBattleTeam(team) {
-    const m = st.match; const side = sideOf(team); const enemy = side === 'A' ? m.b : m.a; const ctrl = isCtrl(team) || isAdmin;
+    const m = st.match; const side = sideOf(team); const enemy = side === 'A' ? m.b : m.a; const ctrl = isCtrl(team);
     let h = `<div class="row"><div class="grow"><b>${D.TEAMS[team].name}</b> <span class="vs">VS</span> <b>${D.TEAMS[enemy].name}</b> · ${st.bracket && st.bracket.matches[m.id] ? st.bracket.matches[m.id].label : ''}</div>${scoreChip()}</div>` + stageBar();
     const wave = /^wave/.test(m.stage);
     if (m.stage === 'result') return h + viewResult() + (st.bracket ? viewBracket() : '');
@@ -732,12 +732,12 @@
       else if (act === 'role-fan') { me = { team: el.dataset.team, role: 'fan' }; saveMe(); render(); }
       else if (act === 'switch-role') { const t = me && me.team; if (t && isCtrl(t)) await R('teams/' + t).update({ controller: null }); me = null; saveMe(); if (t) location.hash = 'team-' + t; render(); }
       else if (act === 'set-class') { await setClassFor(el.dataset.team, el.dataset.name, el.dataset.cls); }
-      else if (act === 'auto-setup') { if (!(isCtrl(el.dataset.team) || isAdmin)) return; await autoSetup(el.dataset.team); toast('จัดทัพอัตโนมัติแล้ว'); }
+      else if (act === 'auto-setup') { if (!isCtrl(el.dataset.team)) return; await autoSetup(el.dataset.team); toast('จัดทัพอัตโนมัติแล้ว'); }
       else if (act === 'guide') { ui.showGuide = true; render(); window.scrollTo(0, 0); }
       else if (act === 'guide-close') { ui.showGuide = false; render(); }
       else if (act === 'cell' || act === 'bench') {
         const team = el.dataset.team; const pid = el.dataset.pid; const cell = el.dataset.cell != null ? +el.dataset.cell : null;
-        if (!(isCtrl(team) || isAdmin)) return;
+        if (!isCtrl(team)) return;
         if (ui.sel) {
           if (pid === ui.sel) { ui.sel = null; render(); return; }
           if (act === 'bench') { if (canMove(ui.sel)) await R('players/' + ui.sel).update({ cell: null }); ui.sel = null; return; }
@@ -747,9 +747,9 @@
         }
         if (pid) { if (!canMove(pid)) { toast('ตอนนี้ย้ายไม่ได้ (กำลังรบ หรือล้มแล้ว)'); return; } ui.sel = pid; render(); }
       }
-      else if (act === 'plan') { const team = myTeam(); if (!team || !(isCtrl(team) || isAdmin)) return; await R('teams/' + team).update({ plan: el.dataset.plan }); }
-      else if (act === 'item') { const team = myTeam(); if (!team || !(isCtrl(team) || isAdmin)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.id === el.dataset.item && !cur.bonus ? null : { id: el.dataset.item } }); }
-      else if (act === 'bonus-item') { const team = myTeam(); if (!team || !(isCtrl(team) || isAdmin)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
+      else if (act === 'plan') { const team = myTeam(); if (!team || !isCtrl(team)) return; await R('teams/' + team).update({ plan: el.dataset.plan }); }
+      else if (act === 'item') { const team = myTeam(); if (!team || !isCtrl(team)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.id === el.dataset.item && !cur.bonus ? null : { id: el.dataset.item } }); }
+      else if (act === 'bonus-item') { const team = myTeam(); if (!team || !isCtrl(team)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
       else if (act === 'tap') { tap(); }
       else if (act === 'practice-start') { ui.prSel = null; if (pRenderer) { pRenderer.stop(); pRenderer = null; } practiceStart(); }
       else if (act === 'practice-stop') { ui.practice.run = null; ui.prSel = null; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
