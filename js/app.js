@@ -686,7 +686,7 @@
     const hash = location.hash.replace('#', '');
     let html;
     if (hash === 'screen') html = viewScreen(); else if (hash === 'admin') html = viewAdmin(); else if (hash.startsWith('team-')) html = viewTeam(hash.slice(5)); else if (me && me.team && !ui.showGuide) html = viewTeam(me.team); else if (ui.showGuide) html = `<div class="wrap">${navHtml('')}${guideHtml()}</div>`; else html = viewHome();
-    html += countdownHtml();
+    html += countdownHtml() + `<div class="small muted center" style="padding:8px">v${(window.KKWAR_VERSION || '').slice(4, 12)}</div>`;
     const tmp = document.createElement('div'); tmp.className = 'app'; tmp.innerHTML = html;
     const keepCanvas = $('#arena', app);
     const newCanvas = $('#arena', tmp);
