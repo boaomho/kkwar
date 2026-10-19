@@ -127,6 +127,8 @@
     return true;
   }
   async function claimController(team) {
+    const cur = await R('teams/' + team + '/controller').get(); // เช็คสดก่อนยึด กันกดพร้อมกัน
+    if (cur && cur.dev && cur.dev !== DEV) { toast('ทีมนี้มีผู้ควบคุมแล้ว (เครื่องอื่นกดก่อน)'); me = { team, role: 'fan' }; saveMe(); return; }
     await R('teams/' + team).update({ controller: { dev: DEV, ts: now() } });
     me = { team, role: 'ctrl' }; saveMe();
   }
@@ -361,7 +363,7 @@
       const c = ctrlOf(team); const taken = c && c.dev !== DEV;
       return h + `<div class="panel"><h2>คุณคือใครในทีม?</h2>
         <button class="primary" data-act="role-ctrl" data-team="${team}" style="padding:18px" ${taken ? 'disabled' : ''}>🎮 ผู้ควบคุมทีม (1 คน)<br><small style="font-weight:400">เลือกอาชีพ จัดทัพ แผน ไอเทม</small></button>
-        ${taken ? `<div class="hint">🔒 ทีมนี้มีผู้ควบคุมแล้ว จะเปลี่ยนได้ต่อเมื่อผู้ควบคุมคนเดิมกด "สลับบทบาท" ปล่อยสิทธิ์ก่อน (หรือ Admin ปลด)</div>` : ''}
+        ${taken ? `<div class="hint">🔒 ทีมนี้มีผู้ควบคุมแล้ว (เครื่อง #${esc(String(c.dev).slice(-4))} ตั้งแต่ ${new Date(c.ts || 0).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}) — มีได้ทีมละ 1 เครื่องเท่านั้น จะเปลี่ยนได้ต่อเมื่อผู้ควบคุมคนเดิมกด "สลับบทบาท" ปล่อยสิทธิ์ก่อน (หรือ Admin ปลด)</div>` : `<div class="hint">ทีมละ 1 เครื่องเท่านั้น ใครกดก่อนได้ก่อน</div>`}
         <button data-act="role-fan" data-team="${team}" style="padding:18px">📣 กองเชียร์<br><small style="font-weight:400">ดูสนามรบ + รัวกดเติมขวัญ</small></button></div></div>`;
     }
     const inMatch = st.match && sideOf(team) && phase() === 'battle';
