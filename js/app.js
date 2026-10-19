@@ -153,7 +153,7 @@
     const S = settings(); round = round || 1; wins = wins || { a: 0, b: 0 };
     const seed = 'm' + id + '-r' + round + '-' + Math.floor(Math.random() * 1e9).toString(36);
     const upd = {}; upd[a + '/plan'] = 'front'; upd[a + '/item'] = null; upd[b + '/plan'] = 'front'; upd[b + '/item'] = null;
-    if (round === 1) { upd[a + '/itemsUsed'] = null; upd[b + '/itemsUsed'] = null; upd[a + '/bonusUsed'] = null; upd[b + '/bonusUsed'] = null; }
+    if (round === 1) { upd[a + '/itemsUsed'] = null; upd[b + '/itemsUsed'] = null; upd[a + '/bonusUsed'] = null; upd[b + '/bonusUsed'] = null; upd[a + '/bonusPick'] = null; upd[b + '/bonusPick'] = null; }
     await R('teams').update(upd);
     await R('match').set({ id, a, b, round, wins, stage: 'plan', stageStart: now(), stageEnds: now() + S.tPlan * 1000, pausedAt: now(), seed, waveInputs: null, taps: null, result: null });
     await R('game').update({ phase: 'battle' });
@@ -180,7 +180,7 @@
         const t = st.teams[team] || {};
         let item = null;
         if (t.item && t.item.id && t.item.bonus) {
-          if (isDecider(m) && !t.bonusUsed && D.ITEMS[t.item.id]) { item = { id: t.item.id, tier: 0, revive: t.item.revive || null }; upd['__teams/' + team + '/bonusUsed'] = true; }
+          if (isDecider(m) && !t.bonusUsed && t.bonusPick === t.item.id && D.ITEMS[t.item.id]) { item = { id: t.item.id, tier: 0 }; upd['__teams/' + team + '/bonusUsed'] = true; }
         } else if (t.item && t.item.id) {
           const its = teamItems(team).find((x) => x.id === t.item.id);
           if (its && !its.used && !its.locked) { item = { id: its.id, tier: its.tier, revive: t.item.revive || null }; upd['__teams/' + team + '/itemsUsed/' + its.id] = true; }
@@ -298,8 +298,13 @@
     return h;
   }
   function itemsHtml(team, interactive) {
-    const sel = st.teams[team] && st.teams[team].item && !st.teams[team].item.bonus && st.teams[team].item.id;
-    return `<div class="item-grid">` + teamItems(team).map((it) => {
+    const t = st.teams[team] || {}; const sel = t.item && !t.item.bonus && t.item.id;
+    let bonus = '';
+    if (st.match && sideOf(team) && isDecider(st.match) && t.bonusPick && D.ITEMS[t.bonusPick]) {
+      const I = D.ITEMS[t.bonusPick]; const selB = t.item && t.item.bonus && t.item.id === t.bonusPick;
+      bonus = `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB ? 'sel' : ''}" style="border-color:var(--gold)" ${interactive && !t.bonusUsed ? `data-act="bonus-item" data-item="${t.bonusPick}"` : ''}><div class="em">⭐${I.emoji}</div><div><div class="nm">${I.name} (พิเศษ)${t.bonusUsed ? ' (ใช้แล้ว)' : ''}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div><div class="ds">ไอเทมเทพรอบตัดสิน</div></div></div>`;
+    }
+    return `<div class="item-grid">` + bonus + teamItems(team).map((it) => {
       const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`;
       const cls = `item-card tier-${it.tier} ${it.used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel === it.id ? 'sel' : ''}`;
       const act = interactive && !it.used && !it.locked ? `data-act="item" data-item="${it.id}"` : '';
@@ -388,8 +393,8 @@
       <div class="row"><label class="small">แผนเรา</label><select id="pr-plan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.plan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select>
       <label class="small">แผนหุ่น</label><select id="pr-eplan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.eplan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select></div>
       ${!pr.run ? `<div class="row"><button class="${pr.decider ? 'gold' : 'ghost'}" data-act="pr-decider">⭐ จำลองรอบตัดสิน (เสมอ 1-1): ${pr.decider ? 'เปิด' : 'ปิด'}</button><span class="small muted">ได้ไอเทมเทพเลือกเอง 1 ชิ้นเพิ่ม</span></div>` : ''}
-      ${!pr.run && pr.decider ? `<h3>⭐ ไอเทมเทพพิเศษ (เลือก 1 ใช้ยก 1 หรือเก็บไว้ใช้ตอนพักยก)</h3><div class="item-grid">` + Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${pr.item0 === 'bonus:' + I.id ? 'sel' : ''}" data-act="pr-item0" data-item="bonus:${I.id}"><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div>` : ''}
-      ${!pr.run ? `<h3>ใช้ไอเทมยก 1 (ถ้าจะใช้ · แตะซ้ำเพื่อยกเลิก)</h3><div class="item-grid">` + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`; return `<div class="item-card tier-${it.tier} ${it.locked ? 'locked' : ''} ${pr.item0 === it.id ? 'sel' : ''}" ${!it.locked ? `data-act="pr-item0" data-item="${it.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">${tierTxt}</div></div></div>`; }).join('') + `</div>` : ''}
+      ${!pr.run && pr.decider ? `<h3>⭐ เลือกไอเทมเทพพิเศษ 1 ชิ้น (จะไปอยู่ในกล่องไอเทม)</h3><div class="item-grid">` + Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${pr.bonusPick === I.id ? 'sel' : ''}" data-act="pr-bonus-pick" data-item="${I.id}"><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div>` : ''}
+      ${!pr.run ? `<h3>ใช้ไอเทมยก 1 (ถ้าจะใช้ · แตะซ้ำเพื่อยกเลิก)</h3><div class="item-grid">` + (pr.decider && pr.bonusPick ? `<div class="item-card tier-0 ${pr.item0 === 'bonus:' + pr.bonusPick ? 'sel' : ''}" style="border-color:var(--gold)" data-act="pr-item0" data-item="bonus:${pr.bonusPick}"><div class="em">⭐${D.ITEMS[pr.bonusPick].emoji}</div><div><div class="nm">${D.ITEMS[pr.bonusPick].name} (พิเศษ)</div><div class="tier">ระดับเทพ</div></div></div>` : '') + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`; return `<div class="item-card tier-${it.tier} ${it.locked ? 'locked' : ''} ${pr.item0 === it.id ? 'sel' : ''}" ${!it.locked ? `data-act="pr-item0" data-item="${it.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">${tierTxt}</div></div></div>`; }).join('') + `</div>` : ''}
       <div class="row"><button class="primary" data-act="practice-start">▶ เริ่มซ้อม${pr.run ? 'ใหม่' : ''}</button>${pr.run ? '<button class="ghost" data-act="practice-stop">หยุด</button>' : ''}</div>`;
     if (pr.run) {
       const r = pr.run; const S2 = settings();
@@ -400,8 +405,8 @@
         h += `<div class="panel"><div class="row"><h2 class="grow">จัดทัพใหม่ก่อนยก ${r.waveIdx + 1}</h2></div><div class="hint">${ui.prSel ? '👉 แตะช่องที่จะวาง' : 'แตะคนที่รอด แล้วแตะช่อง (เลือดไม่ฟื้น เหมือนศึกจริง)'}</div>${prBoardHtml(r, 'A', true)}</div>`;
         h += `<div class="panel"><h3>ทัพหุ่นตอนนี้</h3>${prBoardHtml(r, 'B', false)}</div>`;
         h += `<div class="panel"><h2>แผนเข้าตียก ${r.waveIdx + 1}</h2><div class="plan-grid">` + Object.values(D.PLANS).map((p) => `<button class="plan-btn ${r.plan === p.id ? 'sel' : ''}" data-act="pr-plan" data-plan="${p.id}"><span>${p.emoji}</span><b>${p.name}</b></button>`).join('') + `</div></div>`;
-        if (r.decider) h += `<div class="panel"><h2>⭐ รอบตัดสิน: ไอเทมเทพพิเศษ</h2><div class="hint">${r.bonusUsed ? 'ใช้สิทธิ์ไปแล้ว' : 'เลือกได้ 1 ชิ้น ระดับเทพ ใช้ได้ครั้งเดียว'}</div><div class="item-grid">` + Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${r.bonusUsed ? 'used' : ''} ${r.item === 'bonus:' + I.id ? 'sel' : ''}" ${!r.bonusUsed ? `data-act="pr-item" data-item="bonus:${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div></div>`;
-        h += `<div class="panel"><h2>ใช้ไอเทมยกนี้</h2><div class="hint">ระดับตามอันดับจริงของทีม ชิ้นละครั้งต่อการซ้อม 1 ครั้ง</div><div class="item-grid">` + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const used = !!r.itemsUsed[it.id]; const sel = r.item === it.id; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`;
+        const bonusCard = (r.decider && r.bonusPick) ? `<div class="item-card tier-0 ${r.bonusUsed ? 'used' : ''} ${r.item === 'bonus:' + r.bonusPick ? 'sel' : ''}" style="border-color:var(--gold)" ${!r.bonusUsed ? `data-act="pr-item" data-item="bonus:${r.bonusPick}"` : ''}><div class="em">⭐${D.ITEMS[r.bonusPick].emoji}</div><div><div class="nm">${D.ITEMS[r.bonusPick].name} (พิเศษ)${r.bonusUsed ? ' (ใช้แล้ว)' : ''}</div><div class="tier">ระดับเทพ</div></div></div>` : '';
+        h += `<div class="panel"><h2>ใช้ไอเทมยกนี้</h2><div class="hint">ระดับตามอันดับจริงของทีม ชิ้นละครั้งต่อการซ้อม 1 ครั้ง</div><div class="item-grid">` + bonusCard + teamItems(team).map((it) => { const I = D.ITEMS[it.id]; const used = !!r.itemsUsed[it.id]; const sel = r.item === it.id; const tierTxt = it.locked ? 'รอผลกิจกรรม' : `ระดับ${D.TIER_NAMES[it.tier]} · ${I.tiers[it.tier]}${I.unit}${I.counts ? ' ' + I.counts[it.tier] + ' ตัว' : ''}`;
           return `<div class="item-card tier-${it.tier} ${used ? 'used' : ''} ${it.locked ? 'locked' : ''} ${sel ? 'sel' : ''}" ${!used && !it.locked ? `data-act="pr-item" data-item="${it.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}${used ? ' (ใช้แล้ว)' : ''}</div><div class="tier">${tierTxt}</div></div></div>`; }).join('') + `</div></div>`;
         h += `<button class="primary" data-act="pr-next" style="font-size:20px">▶ เริ่มยก ${r.waveIdx + 1}</button>`;
       }
@@ -481,13 +486,13 @@
     if (!i) return toast('จัดหุ่นก่อนอย่างน้อย 1 ตัว');
     const roster = { ...A.roster, ...ros };
     const units = Sim.createUnits({ A: { team, cells: A.cells }, B: { team: eteam, cells: ecells } }, roster, S);
-    pr.run = { stage: 'wave', waveIdx: 0, units, cells: { ...A.cells }, ecells, roster, teams: { A: team, B: eteam }, plan: pr.plan, eplan: pr.eplan, item: pr.item0 || null, itemsUsed: {}, decider: !!pr.decider, bonusUsed: false, waves: [], seed: 'practice-' + Date.now(), playing: -1 };
+    pr.run = { stage: 'wave', waveIdx: 0, units, cells: { ...A.cells }, ecells, roster, teams: { A: team, B: eteam }, plan: pr.plan, eplan: pr.eplan, item: pr.item0 || null, itemsUsed: {}, decider: !!pr.decider, bonusPick: pr.bonusPick || null, bonusUsed: false, waves: [], seed: 'practice-' + Date.now(), playing: -1 };
     practiceWave(); render(); practiceTick();
   }
   function practiceWave() {
     const r = ui.practice.run; const S = settings(); const team = r.teams.A; const durs = [S.tWave1, S.tWave2, S.tWave3];
     let item = null;
-    if (r.item && r.item.startsWith('bonus:')) { const id = r.item.slice(6); if (r.decider && !r.bonusUsed && D.ITEMS[id]) { item = { id, tier: 0 }; r.bonusUsed = true; } }
+    if (r.item && r.item.startsWith('bonus:')) { const id = r.item.slice(6); if (r.decider && !r.bonusUsed && id === r.bonusPick && D.ITEMS[id]) { item = { id, tier: 0 }; r.bonusUsed = true; } }
     else if (r.item && !r.itemsUsed[r.item]) { const it = teamItems(team).find((x) => x.id === r.item); if (it && !it.locked) { item = { id: it.id, tier: it.tier }; r.itemsUsed[r.item] = true; } }
     r.item = null;
     const inputs = { A: { team, plan: r.plan, item, morale: 0, cells: r.cells }, B: { team: r.teams.B, plan: r.eplan, item: null, morale: 0, cells: r.ecells } };
@@ -537,9 +542,9 @@
     if (m.stage !== 'plan') h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
     h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1}</h2>${plansHtml(team, true)}</div>`;
     if (isDecider(m)) {
-      const t = st.teams[team] || {}; const selB = t.item && t.item.bonus ? t.item.id : null;
-      h += `<div class="panel"><h2>⭐ รอบตัดสิน: ไอเทมเทพพิเศษ</h2><div class="hint">${t.bonusUsed ? 'ใช้สิทธิ์ไปแล้ว' : 'เลือกได้ 1 ชิ้น ระดับเทพ ใช้ได้ครั้งเดียวในรอบนี้ (เพิ่มจากไอเทมที่เหลือ)'}</div><div class="item-grid">` +
-        Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0 ${t.bonusUsed ? 'used' : ''} ${selB === I.id ? 'sel' : ''}" ${!t.bonusUsed ? `data-act="bonus-item" data-item="${I.id}"` : ''}><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div></div>`;
+      const t = st.teams[team] || {};
+      if (!t.bonusPick) h += `<div class="panel"><h2>⭐ รอบตัดสิน: เลือกไอเทมเทพพิเศษ 1 ชิ้น</h2><div class="hint">เลือกครั้งเดียว จะไปอยู่ในกล่องไอเทมของทีม ใช้ยกไหนก็ได้ในรอบนี้</div><div class="item-grid">` +
+        Object.values(D.ITEMS).map((I) => `<div class="item-card tier-0" data-act="bonus-pick" data-item="${I.id}"><div class="em">${I.emoji}</div><div><div class="nm">${I.name}</div><div class="tier">ระดับเทพ · ${I.tiers[0]}${I.unit}${I.counts ? ' ' + I.counts[0] + ' ตัว' : ''}</div></div></div>`).join('') + `</div></div>`;
     }
     h += `<div class="panel"><h2>ใช้ไอเทมยกนี้</h2><div class="hint">ยกละ 1 ชิ้น ใช้ได้ทุกยกรวมถึงยกแรก (คู่แข่งไม่เห็นจนกว่ายกจะเริ่ม) แต่ละชิ้นใช้ได้ครั้งเดียวตลอดคู่นี้ทุกรอบรวมกัน · แตะซ้ำเพื่อยกเลิก</div>${itemsHtml(team, true)}</div>`;
     h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
@@ -754,6 +759,7 @@
       }
       else if (act === 'plan') { const team = myTeam(); if (!team || !isCtrl(team)) return; await R('teams/' + team).update({ plan: el.dataset.plan }); }
       else if (act === 'item') { const team = myTeam(); if (!team || !isCtrl(team)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.id === el.dataset.item && !cur.bonus ? null : { id: el.dataset.item } }); }
+      else if (act === 'bonus-pick') { const team = myTeam(); if (!team || !isCtrl(team)) return; if (st.teams[team] && st.teams[team].bonusPick) return; await R('teams/' + team).update({ bonusPick: el.dataset.item }); toast('ได้ไอเทมเทพพิเศษแล้ว อยู่ในกล่องไอเทม'); }
       else if (act === 'bonus-item') { const team = myTeam(); if (!team || !isCtrl(team)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
       else if (act === 'tap') { tap(); }
       else if (act === 'practice-start') { ui.prSel = null; if (pRenderer) { pRenderer.stop(); pRenderer = null; } practiceStart(); }
@@ -761,7 +767,8 @@
       else if (act === 'pr-cell') { const c = +el.dataset.cell; const pr = ui.practice; const cur = pr.enemyCells[c] || null; let ni = (CYCLE.indexOf(cur) + 1) % CYCLE.length; if (CYCLE[ni] && Object.values(pr.enemyCells).filter(Boolean).length >= 8 && !cur) ni = 0; if (CYCLE[ni] === 'medic' && Object.values(pr.enemyCells).filter((x) => x === 'medic').length >= settings().medicMax) ni = 0; pr.enemyCells[c] = CYCLE[ni]; render(); }
       else if (act === 'pr-random') { ui.practice.enemyCells = randomEnemy(); render(); }
       else if (act === 'pr-item0') { ui.practice.item0 = ui.practice.item0 === el.dataset.item ? null : el.dataset.item; render(); }
-      else if (act === 'pr-decider') { ui.practice.decider = !ui.practice.decider; if (!ui.practice.decider && (ui.practice.item0 || '').startsWith('bonus:')) ui.practice.item0 = null; render(); }
+      else if (act === 'pr-decider') { ui.practice.decider = !ui.practice.decider; if (!ui.practice.decider) { ui.practice.bonusPick = null; if ((ui.practice.item0 || '').startsWith('bonus:')) ui.practice.item0 = null; } render(); }
+      else if (act === 'pr-bonus-pick') { ui.practice.bonusPick = el.dataset.item; if ((ui.practice.item0 || '').startsWith('bonus:')) ui.practice.item0 = 'bonus:' + el.dataset.item; render(); }
       else if (act === 'pr-plan') { ui.practice.run.plan = el.dataset.plan; render(); }
       else if (act === 'pr-item') { const r = ui.practice.run; r.item = r.item === el.dataset.item ? null : el.dataset.item; render(); }
       else if (act === 'pr-next') { const r = ui.practice.run; if (r.stage !== 'pause') return; ui.prSel = null; practiceWave(); render(); practiceTick(); }
@@ -788,7 +795,7 @@
       else if (act === 'advance') { await advanceStage(); }
       else if (act === 'extend') { await R('match').update({ stageEnds: st.match.stageEnds + 15000 }); }
       else if (act === 'pause') { await togglePause(); }
-      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด (สกอร์และไอเทมของคู่นี้รีเซ็ต)?')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) { upd[t + '/itemsUsed'] = null; upd[t + '/bonusUsed'] = null; } await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
+      else if (act === 'restart-match') { if (!confirmUi(el, 'เริ่มศึกนี้ใหม่ทั้งหมด (สกอร์และไอเทมของคู่นี้รีเซ็ต)?')) return; const m = st.match; const upd = {}; for (const t of [m.a, m.b]) { upd[t + '/itemsUsed'] = null; upd[t + '/bonusUsed'] = null; upd[t + '/bonusPick'] = null; } await R('teams').update(upd); await startMatch(m.id, m.a, m.b, 1, { a: 0, b: 0 }); }
       else if (act === 'reset-match') { if (!confirmUi(el, 'รีเซ็ตเกม: ล้างศึก/สาย/ไอเทมที่ใช้ไป เก็บทัพ อันดับ รายชื่อ ผู้ควบคุมไว้ ยืนยัน?')) return; await R('match').set(null); await R('bracket').set(null); const upd = {}; for (const t of D.TEAM_ORDER) { upd[t + '/itemsUsed'] = null; upd[t + '/item'] = null; } await R('teams').update(upd); await R('game').update({ phase: 'lobby' }); }
       else if (act === 'reset-all') { if (!confirmUi(el, 'ล้างทุกอย่าง (ทัพ อาชีพ อันดับ สาย ผู้ควบคุม) — เก็บรายชื่อ รหัสทีม และค่าสมดุลไว้ ยืนยัน?')) return; const g = st.game || {}; await R('').set({ game: { phase: 'lobby', roster: g.roster || null, teamPass: g.teamPass || null, settings: g.settings || null } }); toast('ล้างแล้ว'); }
       else if (act === 'fill-demo') { await fillDemo(); }
