@@ -297,6 +297,18 @@
     }
     return h;
   }
+  // กระดานศัตรู ณ ตอนจบยกล่าสุด (ไม่ใช่สดระหว่างพักยก)
+  function snapshotBoardHtml(team) {
+    const m = st.match; const side = sideOf(team); if (!m || !side || !m.waveInputs) return boardHtml(team, {});
+    const n = Object.keys(m.waveInputs).length; const inp = m.waveInputs[n - 1] && m.waveInputs[n - 1][side]; if (!inp) return boardHtml(team, {});
+    const cm = computeMatch(); const rows = ['หน้า', 'กลาง', 'หลัง']; const cells = inp.cells || {}; const ros = inp.roster || {};
+    let h = `<div class="board-head"><div></div><div>เลนบน</div><div>เลนกลาง</div><div>เลนล่าง</div></div><div class="board">`;
+    for (let r = 0; r < 3; r++) { h += `<div class="rowlab"><b>${rows[r]}</b></div>`;
+      for (let l = 0; l < 3; l++) { const c = r * 3 + l; const pid = cells[c]; const p = pid && ros[pid]; if (!p) { h += `<div class="cell"></div>`; continue; }
+        const u = cm.units.find((x) => x.id === pid); const dead = u && !u.alive;
+        h += `<div class="cell filled ${dead ? 'dead' : ''}"><div class="em">${D.CLASSES[p.cls].emoji}</div><div class="nm">${esc(p.name)}</div>${u ? `<div class="hpbar"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i></div>` : ''}</div>`; } }
+    return h + `</div><div class="hint">ทัพศัตรู ณ ตอนจบยกล่าสุด (การปรับระหว่างพักยกจะเห็นตอนยกถัดไปเริ่ม)</div>`;
+  }
   function itemsHtml(team, interactive) {
     const t = st.teams[team] || {}; const sel = t.item && !t.item.bonus && t.item.id;
     let bonus = '';
@@ -530,7 +542,7 @@
     if (m.pausedAt) h += `<div class="panel center"><b>${m.stage === 'plan' ? '⏳ รอผู้ดำเนินรายการกดเริ่มนับเวลา' : '⏸ ผู้ดำเนินรายการหยุดเวลาไว้'}</b><div class="hint">จัดทัพต่อได้เลย เวลาจะเริ่มเดินเมื่อกดเริ่ม</div></div>`;
     if (!ctrl) {
       h += `<div class="panel"><h2>${m.stage === 'plan' ? 'ผู้ควบคุมกำลังวางทัพ' : 'พักยก — ผู้ควบคุมกำลังปรับทัพ'}</h2>${boardHtml(team, {})}</div>`;
-      if (m.stage !== 'plan') h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name})</h3>${boardHtml(enemy, {})}</div>`;
+      if (m.stage !== 'plan') h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name})</h3>${snapshotBoardHtml(enemy)}</div>`;
       h += `<div class="panel sticky-bottom"><h2>🔥 รัวกด = ฟื้นเลือด + ขวัญกำลังใจ</h2>` + tapHtml(side) + `</div>`;
       return h;
     }
@@ -539,7 +551,7 @@
     }
     h += `<div class="panel"><div class="row"><h2 class="grow">${m.stage === 'plan' ? 'วางทัพ 8 คน' : 'พักยก — จัดทัพใหม่ก่อนยก ' + (w + 1)}</h2><span class="badge">${teamPlayers(team).filter((x) => x.cell != null).length}/8</span></div>
       <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง' : (m.stage === 'plan' ? 'คู่แข่งยังไม่เห็นทัพคุณ วางแล้วเลือกแผน' : 'พักยก: ทุกคนที่ยังรอดกลับเข้าตำแหน่ง ย้ายใหม่ได้ทั้งทัพ (เลือดไม่ฟื้น)')}</div>${boardHtml(team, { interactive: true })}</div>`;
-    if (m.stage !== 'plan') h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name}) ตอนนี้</h3>${boardHtml(enemy, {})}</div>`;
+    if (m.stage !== 'plan') h += `<div class="panel"><h3>ทัพศัตรู (${D.TEAMS[enemy].name})</h3>${snapshotBoardHtml(enemy)}</div>`;
     h += `<div class="panel"><h2>แผนเข้าตียก ${w + 1}</h2>${plansHtml(team, true)}</div>`;
     if (isDecider(m)) {
       const t = st.teams[team] || {};
@@ -578,7 +590,8 @@
     let h = `<div class="panel"><h2>${D.TEAMS[m.a].name} <span class="vs">VS</span> ${D.TEAMS[m.b].name}</h2><div class="hint">ทีมคุณไม่ได้ลงศึกนี้ เชียร์ไปก่อน รอคิวของคุณ</div>` + stageBar() + `</div>`;
     if (/^wave/.test(m.stage)) h += `<div class="arena"><canvas id="arena"></canvas><div class="overlay" id="arena-overlay"></div></div><div class="commentary" id="commentary"></div>` + hpSummaryHtml();
     else if (m.stage === 'result') h += viewResult();
-    else h += `<div class="panel"><h3>${D.TEAMS[m.a].name}</h3>${boardHtml(m.a, {})}</div><div class="panel"><h3>${D.TEAMS[m.b].name}</h3>${boardHtml(m.b, {})}</div>`;
+    else if (m.stage === 'plan') h += `<div class="panel center"><b>🤫 ทั้งสองทีมกำลังวางทัพลับ</b></div>`;
+    else h += `<div class="panel"><h3>${D.TEAMS[m.a].name}</h3>${snapshotBoardHtml(m.a)}</div><div class="panel"><h3>${D.TEAMS[m.b].name}</h3>${snapshotBoardHtml(m.b)}</div>`;
     return h + (st.bracket ? viewBracket() : '');
   }
   function viewResult() {
