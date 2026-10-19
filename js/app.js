@@ -341,10 +341,10 @@
       return h + `<div class="panel"><h2>🔒 รหัสทีม ${T.name}</h2><input id="teampass" type="password" inputmode="numeric" placeholder="รหัสทีม" value=""><button class="primary" data-act="unlock" data-team="${team}">เข้าทีม</button><div class="hint">ขอรหัสจากผู้ดำเนินรายการ</div></div></div>`;
     }
     if (!me || me.team !== team) {
-      const c = ctrlOf(team);
+      const c = ctrlOf(team); const taken = c && c.dev !== DEV;
       return h + `<div class="panel"><h2>คุณคือใครในทีม?</h2>
-        <button class="primary" data-act="role-ctrl" data-team="${team}" style="padding:18px">🎮 ผู้ควบคุมทีม (1 คน)<br><small style="font-weight:400">เลือกอาชีพ จัดทัพ แผน ไอเทม</small></button>
-        ${c ? `<div class="hint">⚠️ ตอนนี้มีเครื่องอื่นเป็นผู้ควบคุมอยู่แล้ว ถ้ากดจะย้ายสิทธิ์มาเครื่องนี้</div>` : ''}
+        <button class="primary" data-act="role-ctrl" data-team="${team}" style="padding:18px" ${taken ? 'disabled' : ''}>🎮 ผู้ควบคุมทีม (1 คน)<br><small style="font-weight:400">เลือกอาชีพ จัดทัพ แผน ไอเทม</small></button>
+        ${taken ? `<div class="hint">🔒 ทีมนี้มีผู้ควบคุมแล้ว จะเปลี่ยนได้ต่อเมื่อผู้ควบคุมคนเดิมกด "สลับบทบาท" ปล่อยสิทธิ์ก่อน (หรือ Admin ปลด)</div>` : ''}
         <button data-act="role-fan" data-team="${team}" style="padding:18px">📣 กองเชียร์<br><small style="font-weight:400">ดูสนามรบ + รัวกดเติมขวัญ</small></button></div></div>`;
     }
     const inMatch = st.match && sideOf(team) && phase() === 'battle';
@@ -358,7 +358,7 @@
   function viewSetup(team) {
     const ctrl = isCtrl(team) || isAdmin; const S = settings();
     let h = '';
-    if (me.role === 'ctrl' && !isCtrl(team)) h += `<div class="panel"><b>⚠️ สิทธิ์ผู้ควบคุมอยู่ที่เครื่องอื่น</b><div class="hint">ถ้าคุณคือผู้ควบคุมตัวจริง กดยึดสิทธิ์กลับมา</div><button class="gold" data-act="role-ctrl" data-team="${team}">🎮 ยึดสิทธิ์ควบคุมมาเครื่องนี้</button></div>`;
+    if (me.role === 'ctrl' && !isCtrl(team)) h += `<div class="panel"><b>⚠️ สิทธิ์ผู้ควบคุมไม่ได้อยู่ที่เครื่องนี้แล้ว</b><div class="hint">${ctrlOf(team) ? 'มีเครื่องอื่นเป็นผู้ควบคุมอยู่ ต้องให้เครื่องนั้นกด "สลับบทบาท" ก่อน' : 'ยังไม่มีผู้ควบคุม กดรับสิทธิ์ได้'}</div>${ctrlOf(team) ? '' : `<button class="gold" data-act="role-ctrl" data-team="${team}">🎮 รับสิทธิ์ผู้ควบคุม</button>`}</div>`;
     if (ctrl) {
       const ps = teamPlayers(team);
       h += `<div class="panel"><div class="row"><h2 class="grow">1) เลือกอาชีพให้สมาชิก</h2><button class="ghost small" data-act="auto-setup" data-team="${team}">⚡ จัดให้อัตโนมัติ</button></div><div class="hint">แตะอาชีพของแต่ละคน (หมอได้ไม่เกิน ${S.medicMax}) ${canChangeClass(team) ? '' : '· ตอนนี้เปลี่ยนไม่ได้ (รอช่วงวางแผน)'}</div><div class="roster-list">` +
@@ -695,9 +695,9 @@
     const act = el.dataset.act;
     try {
       if (act === 'unlock') { const team = el.dataset.team; const v = ($('#teampass', app).value || '').trim(); if (v === String(teamPass(team))) { try { LS.setItem('kkwar-unlock-' + team, '1'); } catch (e) {} render(); } else toast('รหัสทีมไม่ถูกต้อง'); }
-      else if (act === 'role-ctrl') { await claimController(el.dataset.team); render(); }
+      else if (act === 'role-ctrl') { const c = ctrlOf(el.dataset.team); if (c && c.dev !== DEV) return toast('ทีมนี้มีผู้ควบคุมแล้ว'); await claimController(el.dataset.team); render(); }
       else if (act === 'role-fan') { me = { team: el.dataset.team, role: 'fan' }; saveMe(); render(); }
-      else if (act === 'switch-role') { const t = me && me.team; me = null; saveMe(); if (t) location.hash = 'team-' + t; render(); }
+      else if (act === 'switch-role') { const t = me && me.team; if (t && isCtrl(t)) await R('teams/' + t).update({ controller: null }); me = null; saveMe(); if (t) location.hash = 'team-' + t; render(); }
       else if (act === 'set-class') { await setClassFor(el.dataset.team, el.dataset.name, el.dataset.cls); }
       else if (act === 'auto-setup') { if (!(isCtrl(el.dataset.team) || isAdmin)) return; await autoSetup(el.dataset.team); toast('จัดทัพอัตโนมัติแล้ว'); }
       else if (act === 'guide') { ui.showGuide = true; render(); window.scrollTo(0, 0); }
