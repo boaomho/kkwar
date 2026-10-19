@@ -349,7 +349,7 @@
     }
     const inMatch = st.match && sideOf(team) && phase() === 'battle';
     if (inMatch) h += viewBattleTeam(team);
-    else if (phase() === 'battle' && st.match) h += viewSpectate() + viewSetup(team);
+    else if (phase() === 'battle' && st.match) h += `<div class="panel row"><div class="grow"><b>⚔️ กำลังแข่ง: ${D.TEAMS[st.match.a].name} vs ${D.TEAMS[st.match.b].name}</b><div class="hint">ทีมคุณยังไม่ถึงคิว ดูได้ที่จอใหญ่ ระหว่างนี้วางแผน/ซ้อมของทีมตัวเองได้เลย</div></div><a href="#screen" class="chip">📺 ดูสนาม</a></div>` + viewSetup(team);
     else if (phase() === 'done') h += viewPodium();
     else h += viewSetup(team);
     h += `<div class="row"><button class="ghost" data-act="guide">📖 คู่มือ</button><button class="ghost" data-act="switch-role">สลับบทบาท</button></div></div>`;
