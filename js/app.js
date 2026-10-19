@@ -374,22 +374,22 @@
     if (st.bracket) h += viewBracket();
     return h;
   }
-  const PRESETS = {
-    balanced: { name: 'สมดุล 3-3-2', comp: ['spear', 'spear', 'spear', 'cav', 'cav', 'cav', 'archer', 'archer'] },
-    cav8: { name: 'ม้า 8 บุกตะลุย', comp: ['cav', 'cav', 'cav', 'cav', 'cav', 'cav', 'cav', 'cav'] },
-    spear8: { name: 'หอก 8 กำแพงเหล็ก', comp: ['spear', 'spear', 'spear', 'spear', 'spear', 'spear', 'spear', 'spear'] },
-    archer8: { name: 'ธนู 8 ฝนลูกศร', comp: ['archer', 'archer', 'archer', 'archer', 'archer', 'archer', 'archer', 'archer'] },
-    medic: { name: 'หอกหน้า ธนูหลัง หมอ 2', comp: ['spear', 'spear', 'spear', 'archer', 'archer', 'medic', 'archer', 'medic'] },
-  };
+  const CYCLE = [null, 'cav', 'spear', 'archer', 'medic'];
+  function randomEnemy() { const cells = {}; const idx = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(() => Math.random() - 0.5).slice(0, 8); let medics = 0; for (const c of idx) { let cls = ['cav', 'spear', 'archer', 'medic'][Math.floor(Math.random() * 4)]; if (cls === 'medic') { medics++; if (medics > settings().medicMax) cls = 'spear'; } cells[c] = cls; } return cells; }
   function practiceHtml(team) {
-    const pr = ui.practice || {};
-    let h = `<div class="panel"><h2>🧪 ซ้อมรบกับหุ่น</h2><div class="hint">ใช้ทัพที่วางอยู่ตอนนี้ สู้กับหุ่นจำลอง เล่นกี่รอบก็ได้ ไม่มีผลกับศึกจริง</div>
-      <div class="row"><select id="pr-enemy" class="grow">${Object.keys(PRESETS).map((k) => `<option value="${k}" ${pr.enemy === k ? 'selected' : ''}>หุ่น: ${PRESETS[k].name}</option>`).join('')}</select>
-      <select id="pr-plan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.plan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select></div>
+    if (!ui.practice) ui.practice = { enemyCells: randomEnemy(), plan: 'front', eplan: 'front' };
+    const pr = ui.practice; const rows = ['หน้า', 'กลาง', 'หลัง'];
+    let h = `<div class="panel"><h2>🧪 ซ้อมรบกับหุ่น</h2><div class="hint">ใช้ทัพที่วางอยู่ตอนนี้ สู้กับหุ่นที่คุณจัดเอง เล่นกี่รอบก็ได้ ไม่มีผลกับศึกจริง</div>
+      <h3>จัดทัพหุ่น (แตะช่องเพื่อเปลี่ยน: ว่าง → ม้า → หอก → ธนู → หมอ)</h3>
+      <div class="board-head"><div></div><div>เลนบน</div><div>เลนกลาง</div><div>เลนล่าง</div></div><div class="board">`;
+    for (let r = 0; r < 3; r++) { h += `<div class="rowlab"><b>${rows[r]}</b></div>`; for (let l = 0; l < 3; l++) { const c = r * 3 + l; const cls = pr.enemyCells[c]; h += `<div class="cell ${cls ? 'filled' : ''}" data-act="pr-cell" data-cell="${c}"><div class="em">${cls ? D.CLASSES[cls].emoji : ''}</div><div class="nm">${cls ? D.CLASSES[cls].short : ''}</div></div>`; } }
+    h += `</div><div class="row"><button class="ghost" data-act="pr-random">🎲 สุ่มหุ่น</button><button class="ghost" data-act="pr-clear">✖ ล้าง</button><span class="small muted">หุ่น ${Object.values(pr.enemyCells).filter(Boolean).length}/8</span></div>
+      <div class="row"><label class="small">แผนเรา</label><select id="pr-plan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.plan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select>
+      <label class="small">แผนหุ่น</label><select id="pr-eplan">${Object.values(D.PLANS).map((p) => `<option value="${p.id}" ${pr.eplan === p.id ? 'selected' : ''}>${p.emoji} ${p.name}</option>`).join('')}</select></div>
       <div class="row"><button class="primary" data-act="practice-start">▶ เริ่มซ้อม (เร็ว 1.5 เท่า)</button>${pr.run ? '<button class="ghost" data-act="practice-stop">หยุด</button>' : ''}</div>`;
     if (pr.run) {
       const r = pr.run;
-      h += `<div class="stage wave"><div class="nm">${r.done ? 'จบการซ้อม' : 'ระลอก ' + (r.waveIdx + 1)}</div><div class="tm">${r.done ? (r.result.winner === 'A' ? '🏆 ชนะ' : '💀 แพ้') : ''}</div></div>
+      h += `<div class="stage wave"><div class="nm">${r.done ? 'จบการซ้อม' : 'ยก ' + (r.waveIdx + 1)}</div><div class="tm">${r.done ? (r.result.winner === 'A' ? '🏆 ชนะ' : '💀 แพ้') : ''}</div></div>
         <div class="arena"><canvas id="practice-arena"></canvas></div><div class="commentary" id="practice-commentary"></div>`;
       if (r.done) h += `<div class="small">${r.result.winner === 'A' ? 'ทัพนี้ชนะหุ่น' : 'ทัพนี้แพ้หุ่น'} · เลือดเหลือ ${Math.round(r.result.s.A.pct * 100)}% vs ${Math.round(r.result.s.B.pct * 100)}% · ${r.result.reason === 'wipe' ? 'ล้างบาง' : 'วัดเลือดรวม'}</div>` + statsHtml({ waves: r.waves, units: r.units });
     }
@@ -445,15 +445,16 @@
   let pRenderer = null;
   function practiceStart() {
     const team = myTeam(); if (!team) return;
-    const enemy = $('#pr-enemy', app).value, plan = $('#pr-plan', app).value;
+    const pr = ui.practice; pr.plan = $('#pr-plan', app).value; pr.eplan = $('#pr-eplan', app).value;
     const S = settings();
     const A = snapshotSide(team); if (Object.keys(A.cells).length < 1) return toast('วางทัพก่อนอย่างน้อย 1 คน');
     const eteam = D.TEAM_ORDER.find((t) => t !== team);
-    const cells = {}, ros = {}; PRESETS[enemy].comp.forEach((cls, i) => { const id = 'bot' + i; cells[i] = id; ros[id] = { name: 'หุ่น ' + (i + 1), cls }; });
+    const cells = {}, ros = {}; let i = 0; for (const c of Object.keys(pr.enemyCells)) { const cls = pr.enemyCells[c]; if (!cls) continue; const id = 'bot' + c; cells[c] = id; ros[id] = { name: 'หุ่น ' + (++i), cls }; }
+    if (!i) return toast('จัดหุ่นก่อนอย่างน้อย 1 ตัว');
     const roster = { ...A.roster, ...ros };
     const seed = 'practice-' + Date.now();
-    const r = Sim.simulateMatch({ A: { team, cells: A.cells, plans: [plan, plan, plan], items: [null, null, null], morale: 0.5 }, B: { team: eteam, cells, plans: ['front', 'front', 'front'], items: [null, null, null], morale: 0.5 } }, roster, S, seed);
-    ui.practice = { enemy, plan, run: { waves: r.waves, units: r.units, result: r.result, waveIdx: 0, startedAt: Date.now(), done: false, teams: { A: team, B: eteam } } };
+    const r = Sim.simulateMatch({ A: { team, cells: A.cells, plans: [pr.plan, pr.plan, pr.plan], items: [null, null, null], morale: 0.5 }, B: { team: eteam, cells, plans: [pr.eplan, pr.eplan, pr.eplan], items: [null, null, null], morale: 0.5 } }, roster, S, seed);
+    pr.run = { waves: r.waves, units: r.units, result: r.result, waveIdx: 0, startedAt: Date.now(), done: false, teams: { A: team, B: eteam } };
     render(); practiceTick();
   }
   function practiceTick() {
@@ -656,7 +657,7 @@
     const tmp = document.createElement('div'); tmp.className = 'app'; tmp.innerHTML = html;
     const keepCanvas = $('#arena', app);
     const newCanvas = $('#arena', tmp);
-    if (window.morphdom) morphdom(app, tmp, { childrenOnly: true, onBeforeElUpdated: (a, b) => { if (a.tagName === 'CANVAS') return false; if ((a.id === 'commentary' || a.id === 'practice-commentary') && a.children.length) return false; if (a.id === 'pr-enemy' || a.id === 'pr-plan') return false; if (a.id === 'qr' && a.children.length) return false; if (document.activeElement === a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return false; return true; } });
+    if (window.morphdom) morphdom(app, tmp, { childrenOnly: true, onBeforeElUpdated: (a, b) => { if (a.tagName === 'CANVAS') return false; if ((a.id === 'commentary' || a.id === 'practice-commentary') && a.children.length) return false; if (a.id === 'pr-eplan' || a.id === 'pr-plan') return false; if (a.id === 'qr' && a.children.length) return false; if (document.activeElement === a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return false; return true; } });
     else app.innerHTML = html;
     const c = $('#arena', app);
     if (c) attachArena(c); else { lastArenaKey = null; lastWaveKey = null; if (renderer) { renderer.stop(); renderer = null; } }
@@ -718,7 +719,10 @@
       else if (act === 'bonus-item') { const team = myTeam(); if (!team || !(isCtrl(team) || isAdmin)) return; const cur = st.teams[team] && st.teams[team].item; await R('teams/' + team).update({ item: cur && cur.bonus && cur.id === el.dataset.item ? null : { id: el.dataset.item, tier: 0, bonus: true } }); }
       else if (act === 'tap') { tap(); }
       else if (act === 'practice-start') { practiceStart(); }
-      else if (act === 'practice-stop') { ui.practice = { enemy: ui.practice.enemy, plan: ui.practice.plan }; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
+      else if (act === 'practice-stop') { ui.practice.run = null; if (pRenderer) { pRenderer.stop(); pRenderer = null; } render(); }
+      else if (act === 'pr-cell') { const c = +el.dataset.cell; const pr = ui.practice; const cur = pr.enemyCells[c] || null; let ni = (CYCLE.indexOf(cur) + 1) % CYCLE.length; if (CYCLE[ni] && Object.values(pr.enemyCells).filter(Boolean).length >= 8 && !cur) ni = 0; if (CYCLE[ni] === 'medic' && Object.values(pr.enemyCells).filter((x) => x === 'medic').length >= settings().medicMax) ni = 0; pr.enemyCells[c] = CYCLE[ni]; render(); }
+      else if (act === 'pr-random') { ui.practice.enemyCells = randomEnemy(); render(); }
+      else if (act === 'pr-clear') { ui.practice.enemyCells = {}; render(); }
       else if (act === 'pin' || act === 'admin-login') {
         const v = act === 'pin' ? $('#pin', app).value : prompt_('PIN');
         if (v === settings().pin) { isAdmin = true; try { localStorage.setItem('kkwar-admin', '1'); } catch (e) {} toast('เข้าสู่โหมด host แล้ว'); render(); } else toast('PIN ไม่ถูกต้อง');

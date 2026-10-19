@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   await p.waitForSelector('[data-act="fill-demo"]'); await p.click('[data-act="fill-demo"]'); await p.waitForTimeout(300);
   await p.goto('http://127.0.0.1:8123/index.html?mock'); await p.waitForSelector('[data-act="join-team"]');
   await p.click('[data-act="join-team"][data-team="yellow"]'); await p.click('[data-act="join-name"] >> nth=1'); await p.waitForTimeout(400);
-  await p.selectOption('#pr-enemy', 'cav8'); await p.click('[data-act="practice-start"]'); await p.waitForTimeout(6000);
+   await p.click('[data-act="practice-start"]'); await p.waitForTimeout(6000);
   await p.screenshot({ path: 'tools/shots/practice-run.png', fullPage: true });
   await p.waitForTimeout(40000);
   await p.screenshot({ path: 'tools/shots/practice-done.png', fullPage: true });
