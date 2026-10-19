@@ -349,7 +349,7 @@
     }
     const inMatch = st.match && sideOf(team) && phase() === 'battle';
     if (inMatch) h += viewBattleTeam(team);
-    else if (phase() === 'battle' && st.match) h += viewSpectate() + (isCtrl() ? viewSetup(team) : '');
+    else if (phase() === 'battle' && st.match) h += viewSpectate() + viewSetup(team);
     else if (phase() === 'done') h += viewPodium();
     else h += viewSetup(team);
     h += `<div class="row"><button class="ghost" data-act="guide">📖 คู่มือ</button><button class="ghost" data-act="switch-role">สลับบทบาท</button></div></div>`;
@@ -367,7 +367,8 @@
         <div class="hint">${ui.sel ? '👉 แตะช่องที่จะวาง (แตะช่องที่มีคนเพื่อสลับ)' : 'แตะคน แล้วแตะช่อง · แถวหน้าปะทะก่อน แถวหลังปลอดภัยกว่าแต่ม้าศัตรูพุ่งมาหาได้ · ลงสนามได้ 8 คน'}</div>${boardHtml(team, { interactive: true })}</div>`;
       h += `<div class="panel"><h2>3) แผนเข้าตียกแรก</h2>${plansHtml(team, true)}</div>`;
     } else {
-      h += `<div class="panel"><h2>ทัพของทีม</h2><div class="hint">ผู้ควบคุมทีมเป็นคนจัด คุณดูได้และช่วยรัวกดตอนศึก</div>${boardHtml(team, {})}</div>`;
+      const plan = (st.teams[team] && st.teams[team].plan) || 'front';
+      h += `<div class="panel"><h2>ทัพของทีม (ดูอย่างเดียว)</h2><div class="hint">ผู้ควบคุมทีมเป็นคนจัด คุณดูได้และช่วยรัวกดตอนศึก</div>${boardHtml(team, {})}<div class="row small"><span class="chip">แผนยกแรก: ${D.PLANS[plan].emoji} ${D.PLANS[plan].name}</span></div><div class="roster-list">` + roster(team).map((n) => { const q = playerByName(team, n); return `<div class="u"><span>${q && q.cls ? D.CLASSES[q.cls].emoji : '⬜'}</span><span>${esc(n)}</span><span class="small muted">${q && q.cls ? D.CLASSES[q.cls].name + (q.cell != null ? ' · ลงสนาม' : ' · สำรอง') : 'ยังไม่เลือกอาชีพ'}</span></div>`; }).join('') + `</div></div>`;
     }
     h += `<div class="panel"><h2>ไอเทมของทีม</h2><div class="hint">ได้จากอันดับกิจกรรม outing ใช้ได้ตอนวางแผน/พักยก ยกละ 1 ชิ้น ชิ้นละครั้งต่อคู่</div>${itemsHtml(team, false)}</div>`;
     if (ctrl) h += practiceHtml(team);
