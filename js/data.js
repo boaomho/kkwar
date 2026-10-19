@@ -8,6 +8,7 @@ window.GameData = (function () {
     purple: { id: 'purple', name: 'ทีมม่วง',   color: '#a86bff', dark: '#4a1f8f', emoji: '🔮' },
   };
   const TEAM_ORDER = ['red', 'yellow', 'blue', 'purple'];
+  const DEFAULT_TEAM_PASS = { red: '1111', yellow: '2222', blue: '3333', purple: '4444' };
 
   // รายชื่อจากไวท์บอร์ด (แก้ได้ในหน้า Admin)
   const ROSTER = {
@@ -64,7 +65,7 @@ window.GameData = (function () {
     pin: '1234',
     prizes: [3200, 2500, 1900, 1400],
     // เวลา (วินาที)
-    tPlan: 40, tWave1: 15, tPause: 20, tWave2: 15, tWave3: 20, tResult: 30, roundsToWin: 2,
+    tPlan: 90, tWave1: 15, tPause: 30, tWave2: 15, tWave3: 20, tResult: 30, roundsToWin: 2,
     // สมดุลอาชีพ
     hp:  { cav: 300, spear: 420, archer: 250, medic: 290 },
     atk: { cav: 14, spear: 13, archer: 13, medic: 0 },
@@ -73,7 +74,7 @@ window.GameData = (function () {
     counterWin: 1.25, counterLose: 0.8,
     waveMult: [1.0, 1.15, 1.4],
     varMin: 0.85, varMax: 1.15, critChance: 0.10, critMult: 2.0,
-    moraleMax: 0.15, moraleHeal: 0.25, tapsPerPersonFull: 40,
+    moraleMax: 0.15, moraleHeal: 0.25, tapsPerDevice: 40, tapPct: 0.5,
     planFrontBonus: 1.10, planBackExposed: 1.15, cavCharge: 1.4, netDelay: 2, stunVuln: 1.3,
     attackEvery: 1.0, atkEvery: { cav: 1.0, spear: 1.0, archer: 1.15, medic: 1.0 }, confuseSlow: 0.3, confuseWeak: 0.4, archerRange: 0.38, meleeRange: 0.125, healRange: 0.24, separation: 0.11,
   };
@@ -85,6 +86,6 @@ window.GameData = (function () {
     return 'p' + h.toString(36);
   }
 
-  return { TEAMS, TEAM_ORDER, ROSTER, CLASSES, CLASS_ORDER, PLANS, ACTIVITIES, ACTIVITY_ORDER,
+  return { TEAMS, TEAM_ORDER, DEFAULT_TEAM_PASS, ROSTER, CLASSES, CLASS_ORDER, PLANS, ACTIVITIES, ACTIVITY_ORDER,
            TIER_NAMES, ITEMS, DEFAULT_SETTINGS, slug };
 })();

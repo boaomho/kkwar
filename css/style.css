@@ -197,3 +197,9 @@ input, select { font: inherit; background: var(--bg2); color: var(--fg); border:
 
 .rank-block { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--line); }
 .rank-btn { padding: 10px 12px; font-size: 15px; border-radius: 12px; }
+
+.cls-btn { padding: 6px 8px; font-size: 20px; border-radius: 10px; background: var(--bg2); border: 2px solid var(--line); line-height: 1; }
+.cls-btn.sel { border-color: var(--gold); background: #3a3214; }
+.countdown { position: fixed; inset: 0; background: rgba(5,8,16,.86); z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.countdown .cd-title { font-family: var(--font-display); font-size: clamp(22px, 5vw, 48px); font-weight: 700; color: #fff; text-align: center; padding: 0 20px; }
+.countdown .cd-num { font-family: var(--font-display); font-size: clamp(120px, 30vw, 260px); font-weight: 800; line-height: 1; color: var(--gold); text-shadow: 0 0 60px rgba(245,197,24,.5); animation: pop .4s ease-out; }
